@@ -3,6 +3,10 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.1.4 (2026-11-07)
+- Photo scan: German military serials such as "15+11" are recognised as registrations
+- Photo scan: a registration or military serial entered as a correction is accepted in any format (e.g. MM62243, 11-5101), so such folders can be applied
+
 ## 0.1.3 (2026-11-07)
 - OpenSky notice: the aircraft database is unlicensed and provided "as is"; the notice and the paper OpenSky asks to cite are shown as an info box at "More about the source" (Master data) and at OpenSky Network (About), on hover, keyboard focus or tap
 - Corrected the OpenSky license line: unlicensed, provided "as is"

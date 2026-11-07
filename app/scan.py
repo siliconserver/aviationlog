@@ -87,10 +87,12 @@ def aircraft_folder(folder: str) -> str:
 def analyze(db, folder: str) -> tuple[dict, list[str], int | None]:
     """Parsed values (with remembered corrections), problems and a matching sighting."""
     parsed, _ = photos.parse_folder(folder)
+    corrected = False
     for key in (aircraft_folder(folder), folder):
         override = db.get(models.FolderOverride, key)
         if override:
             parsed.update({k: v for k, v in override.data.items() if k in parsed})
+            corrected = corrected or bool(override.data.get("registration"))
     problems = []
     reg = photos.normalize_registration(parsed.get("registration") or "")
     aircraft = find_aircraft(db, reg) if reg else None
@@ -98,7 +100,9 @@ def analyze(db, folder: str) -> tuple[dict, list[str], int | None]:
         reg = aircraft.registration
     parsed["registration"] = reg or None
     parsed["known_aircraft"] = aircraft is not None
-    if not reg or not (aircraft or photos.REG_RE.match(reg)):
+    # a registration entered by hand is trusted (military serials, unusual formats)
+    if not reg or not (aircraft or photos.REG_RE.match(reg)
+                       or (corrected and photos.PLAUSIBLE_REG_RE.match(reg))):
         problems.append("registration")
     day = None
     try:

@@ -129,6 +129,41 @@ def test_nas_scan(client, db, tmp_path, monkeypatch):
     assert r.status_code == 400
 
 
+def test_nas_scan_military_and_corrected_registration(client, db, tmp_path, monkeypatch):
+    import jobs
+    import_all(db)
+    root = tmp_path / "nas"
+    monkeypatch.setenv("PHOTO_MODE", "nas")
+    monkeypatch.setenv("PHOTO_DIR", str(root))
+    for folder in ["Luftwaffe/A21N/15+11 Luftwaffe A21N/2026-06-15-CGN",
+                   "Emirates/B77W/Emirates B77W/2026-10-31-FRA"]:
+        d = root / folder
+        d.mkdir(parents=True)
+        fixtures_photos.jpeg_with_exif(str(d / "a.jpg"), gps=None)
+    client.post("/admin/photos/scan")
+    jobs.wait_idle()
+    db.expire_all()
+    entries = {e.folder.split("/")[0]: e for e in db.query(models.ScanEntry)}
+    # German military serial is accepted as it is
+    assert "registration" not in entries["Luftwaffe"].problems
+    # a folder without registration is flagged, saving it unchanged does not help ...
+    assert "registration" in entries["Emirates"].problems
+    client.post(f"/admin/photos/entry/{entries['Emirates'].id}", data={"registration": "EMIRATES", "accepted": "on"})
+    db.expire_all()
+    assert "registration" in db.get(models.ScanEntry, entries["Emirates"].id).problems
+    # ... but any registration or serial entered by hand is trusted
+    client.post(f"/admin/photos/entry/{entries['Emirates'].id}", data={"registration": "MM62243", "accepted": "on"})
+    db.expire_all()
+    assert db.get(models.ScanEntry, entries["Emirates"].id).problems == []
+    for e in entries.values():
+        client.post(f"/admin/photos/entry/{e.id}", data={"accepted": "on"})
+    client.post("/admin/photos/apply")
+    jobs.wait_idle()
+    db.expire_all()
+    assert {a.registration for a in db.query(models.Aircraft).filter(
+        models.Aircraft.registration.in_(["15+11", "MM62243"]))} == {"15+11", "MM62243"}
+
+
 def test_two_factor_login(client, db):
     import pyotp
 
