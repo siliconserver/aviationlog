@@ -85,3 +85,15 @@ def test_nearest_spot():
     near, far = S(50.0406, 8.5861), S(50.1, 8.7)
     assert photos.nearest_spot([far, near], 50.0405, 8.5862) is near
     assert photos.nearest_spot([far], 48.0, 11.0) is None
+
+
+def test_parse_folder_invisible_chars_and_missing_type_folder():
+    # macOS over SMB stores a trailing space as U+F028; the type folder is missing
+    parsed, _ = photos.parse_folder("Mavi Gök Airlines\uf028/TC-MGN MGA B738/2026-05-19-MUC")
+    assert parsed["airline"] == "Mavi Gök Airlines"
+    assert parsed["registration"] == "TC-MGN" and parsed["type_icao"] == "B738"
+    assert parsed["christening_name"] is None
+    assert parsed["date"] == "2026-05-19" and parsed["airport"] == "MUC"
+    # decomposed umlaut (NFD) and zero-width space
+    parsed, _ = photos.parse_folder("Mavi Go\u0308k Airlines\u200b/B738/TC-MGN Mavi Gök Airlines B738/2026-05-19-MUC")
+    assert parsed["airline"] == "Mavi Gök Airlines" and parsed["christening_name"] is None

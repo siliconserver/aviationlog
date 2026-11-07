@@ -10,6 +10,7 @@ import math
 import os
 import re
 import struct
+import unicodedata
 from datetime import date, datetime
 from pathlib import Path
 
@@ -63,6 +64,20 @@ PLAUSIBLE_REG_RE = re.compile(r"^[A-Z0-9][A-Z0-9+.-]{0,15}$")
 DATE_DIR_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})[-_ ]+([A-Za-z0-9]{3,4})\b\s*(.*)$")
 
 
+def clean_name(name: str) -> str:
+    """Folder name as meant by the user. Removes invisible characters that SMB clients leave
+    in names: macOS stores a trailing space or dot (and characters like : * ?) as private-use
+    characters (U+F020-U+F02F), Windows tools may add zero-width or control characters."""
+    name = unicodedata.normalize("NFC", name or "")
+    name = "".join(c for c in name if not ("\ue000" <= c <= "\uf8ff") and unicodedata.category(c) not in ("Cf", "Cc"))
+    return " ".join(name.split()).strip(" .")
+
+
+def _initials(text: str) -> str:
+    words = [w for w in re.split(r"[\s-]+", text or "") if w]
+    return "".join(w[0] for w in words).upper() if len(words) > 1 else ""
+
+
 def normalize_registration(reg: str) -> str:
     return re.sub(r"\s+", "", (reg or "").upper())
 
@@ -84,6 +99,7 @@ def parse_aircraft_dir(name: str, airline: str = "", type_icao: str = "") -> dic
     liveries = [p.strip() for p in re.findall(r"\(([^)]*)\)", rest) if p.strip()]
     rest = re.sub(r"\([^)]*\)", " ", rest)
     rest = _remove_word(rest, airline)
+    rest = _remove_word(rest, _initials(airline))  # "MGA" for "Mavi Gök Airlines"
     rest = _remove_word(rest, type_icao)
     christening = " ".join(rest.split())
     return {
@@ -109,7 +125,7 @@ def parse_folder(rel_folder: str) -> tuple[dict, list[str]]:
 
     Returns the detected values and a list of problem codes.
     """
-    parts = [p for p in rel_folder.split("/") if p]
+    parts = [clean_name(p) for p in rel_folder.split("/") if p]
     problems = []
     parsed = {
         "airline": None,
@@ -125,6 +141,12 @@ def parse_folder(rel_folder: str) -> tuple[dict, list[str]]:
     date_dir = None
     if len(parts) >= 4:
         airline, type_icao, ac_dir, date_dir = parts[-4:]
+    elif len(parts) == 3 and DATE_DIR_RE.match(parts[2]):
+        # type folder missing: <Airline>/<REG Airline Type>/<date>, take the type from the aircraft folder
+        airline, ac_dir, date_dir = parts
+        words = re.sub(r"\([^)]*\)", " ", ac_dir).split()[1:]
+        types = [w for w in words if re.fullmatch(r"[A-Z][A-Z0-9]{1,3}", w) and any(ch.isdigit() for ch in w)]
+        type_icao = types[-1] if types else ""
     elif len(parts) == 3:
         airline, type_icao, ac_dir = parts
     else:
