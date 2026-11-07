@@ -12,7 +12,8 @@
 (function () {
   var T = {sightings: {{ t("map.sightings") | tojson }}, open: {{ t("map.open_airport") | tojson }}};
   var map = L.map("map").setView([50, 10], 4);
-  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
+  // referrerPolicy: tile.openstreetmap.org answers 403 without a Referer, even if a proxy sets a strict policy
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, referrerPolicy: "strict-origin-when-cross-origin",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
   function esc(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
   fetch("/api/map").then(function (r) { return r.json(); }).then(function (data) {

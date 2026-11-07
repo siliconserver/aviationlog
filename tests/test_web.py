@@ -28,6 +28,14 @@ def test_pages_render(client, db):
     assert "Flugzeuge" in client.get("/aircraft").text  # switched to German
 
 
+def test_map_tiles_get_referer(client, db):
+    # tile.openstreetmap.org answers 403 without a Referer: the page must not forbid it
+    r = client.get("/map")
+    assert r.status_code == 200
+    assert r.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert 'referrerPolicy: "strict-origin-when-cross-origin"' in r.text
+
+
 def test_upload_sighting_with_photo(client, db, tmp_path, monkeypatch):
     import_all(db)
     monkeypatch.setenv("PHOTO_MODE", "upload")

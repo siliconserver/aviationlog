@@ -3,6 +3,9 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.1.2 (2026-11-07)
+- Fix: map tiles from OpenStreetMap failed with 403 when the reverse proxy sets a strict Referrer-Policy; the map now always sends the origin as Referer
+
 ## 0.1.1 (2026-11-07)
 - Fix: the OpenSky import failed with "ON CONFLICT DO UPDATE command cannot affect row a second time" when the file lists a registration more than once; such entries are now merged
 - README: Traefik setup with the proxy network
