@@ -45,6 +45,18 @@ app.add_middleware(
     same_site="lax",
     max_age=60 * 60 * 24 * 30,
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    response = await call_next(request)
+    # Not "same-origin"/"no-referrer": tile.openstreetmap.org needs a Referer and answers 403 without one.
+    # Other sites only ever see the origin, never path or search terms.
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    return response
+
+
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 app.include_router(auth_router)
 app.include_router(collection_router)
