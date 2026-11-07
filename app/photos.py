@@ -155,6 +155,8 @@ def build_folder(airline: str, type_icao: str, registration: str, christening_na
     """Relative date folder for an uploaded photo, following the folder scheme."""
     airline = _clean_component(airline)
     type_icao = _clean_component(type_icao or "UNKN")
+    if registration.startswith("?-"):
+        registration = "UNKNOWN" + registration[1:]  # placeholder "?-3" -> "UNKNOWN-3"
     ac = f"{registration} {airline} {type_icao}"
     if christening_name:
         ac += f" {christening_name}"

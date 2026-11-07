@@ -13,7 +13,8 @@ import photos
 
 logger = logging.getLogger("scan")
 
-AIRCRAFT_FIELDS = ("registration", "airline", "type_icao", "christening_name", "livery")
+AIRCRAFT_FIELDS = ("registration", "airline", "type_icao", "christening_name", "livery", "reg_unknown",
+                   "aircraft_id")
 DATE_FIELDS = ("date", "airport")
 
 
@@ -48,6 +49,53 @@ def find_aircraft(db, registration: str | None):
         .order_by(models.Aircraft.id)
         .first()
     )
+
+
+def create_unknown_aircraft(db, source: str = "manual") -> models.Aircraft:
+    """New aircraft whose registration is not known yet, with placeholder registration "?-<n>"."""
+    numbers = [int(r[2:]) for (r,) in db.query(models.Aircraft.registration)
+               .filter(models.Aircraft.registration.like("?-%")) if r[2:].isdigit()]
+    ac = models.Aircraft(registration=f"?-{max(numbers, default=0) + 1}", reg_unknown=True, source=source,
+                         active=True, manual_fields=[])
+    db.add(ac)
+    db.flush()
+    return ac
+
+
+def set_registration(db, ac: models.Aircraft, registration: str) -> models.Aircraft:
+    """Gives an aircraft with unknown registration its real one. If that registration already
+    exists (e.g. from the master data), the sightings move over and the placeholder is removed.
+    Returns the aircraft that now holds the sightings."""
+    reg = photos.normalize_registration(registration)
+    target = find_aircraft(db, reg)
+    if target and target.id != ac.id:
+        for s in list(ac.sightings):
+            s.aircraft_id = target.id
+        manual = list(target.manual_fields or [])
+        for field in ("type_icao", "christening_name", "notes", "airline_id"):
+            if getattr(ac, field) and not getattr(target, field):
+                setattr(target, field, getattr(ac, field))
+                if field not in manual:
+                    manual.append(field)
+        target.manual_fields = manual
+        if not target.cover_photo_id and ac.cover_photo_id:
+            target.cover_photo_id = ac.cover_photo_id
+        ac.cover_photo_id = None
+        db.flush()
+        db.expire(ac, ["sightings"])
+        db.delete(ac)
+    else:
+        target = ac
+        ac.registration = reg
+        ac.reg_unknown = False
+    # scan corrections that pointed to the placeholder now carry the real registration
+    for row in db.query(models.FolderOverride).all():
+        if row.data.get("aircraft_id") == ac.id:
+            data = {k: v for k, v in row.data.items() if k not in ("aircraft_id", "reg_unknown")}
+            data["registration"] = target.registration
+            row.data = data
+    db.flush()
+    return target
 
 
 def find_or_create_airline(db, name: str | None):
@@ -88,21 +136,29 @@ def analyze(db, folder: str) -> tuple[dict, list[str], int | None]:
     """Parsed values (with remembered corrections), problems and a matching sighting."""
     parsed, _ = photos.parse_folder(folder)
     corrected = False
+    unknown_id = None
+    parsed["reg_unknown"] = False
     for key in (aircraft_folder(folder), folder):
         override = db.get(models.FolderOverride, key)
         if override:
             parsed.update({k: v for k, v in override.data.items() if k in parsed})
             corrected = corrected or bool(override.data.get("registration"))
+            unknown_id = override.data.get("aircraft_id", unknown_id)
     problems = []
-    reg = photos.normalize_registration(parsed.get("registration") or "")
-    aircraft = find_aircraft(db, reg) if reg else None
+    if parsed["reg_unknown"]:
+        # registration marked as unknown: one placeholder aircraft per aircraft folder
+        aircraft = db.get(models.Aircraft, unknown_id) if unknown_id else None
+        reg = aircraft.registration if aircraft else ""
+    else:
+        reg = photos.normalize_registration(parsed.get("registration") or "")
+        aircraft = find_aircraft(db, reg) if reg else None
     if aircraft:
         reg = aircraft.registration
     parsed["registration"] = reg or None
     parsed["known_aircraft"] = aircraft is not None
     # a registration entered by hand is trusted (military serials, unusual formats)
-    if not reg or not (aircraft or photos.REG_RE.match(reg)
-                       or (corrected and photos.PLAUSIBLE_REG_RE.match(reg))):
+    if not parsed["reg_unknown"] and (not reg or not (aircraft or photos.REG_RE.match(reg)
+                                                       or (corrected and photos.PLAUSIBLE_REG_RE.match(reg)))):
         problems.append("registration")
     day = None
     try:
@@ -262,9 +318,12 @@ def apply_entry(db, entry: models.ScanEntry, make_thumbs: bool = True) -> int:
         entry.parsed, entry.problems = parsed, problems
         return 0
     reg = parsed["registration"]
-    aircraft = find_aircraft(db, reg)
+    aircraft = find_aircraft(db, reg) if reg else None
     airline = find_or_create_airline(db, parsed.get("airline"))
-    if not aircraft:
+    if not aircraft and parsed.get("reg_unknown"):
+        aircraft = create_unknown_aircraft(db, source="scan")
+        save_override(db, entry.folder, {"aircraft_id": aircraft.id})
+    elif not aircraft:
         aircraft = models.Aircraft(registration=reg, source="scan", active=True, manual_fields=[])
         db.add(aircraft)
     manual = list(aircraft.manual_fields or [])

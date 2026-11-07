@@ -9,6 +9,7 @@
   <label class="suggest">{{ t("field.registration") }}
     <input type="text" name="registration" id="reg" value="{{ form.registration if form.registration is defined and form.registration else reg }}" required autofocus style="text-transform: uppercase">
     <div class="suggest-list" id="reg-list"></div>
+    <span class="checkbox" style="margin-top:0.4rem"><input type="checkbox" name="reg_unknown" id="reg-unknown" {{ "checked" if form.reg_unknown is defined and form.reg_unknown }}> {{ t("aircraft.reg_unknown") }}</span>
   </label>
   {% endif %}
   <label>{{ t("field.date") }}
@@ -138,7 +139,16 @@
     function (a) { return a.registration + "  " + (a.type_icao || "") + "  " + (a.operator || ""); },
     function (a) { reg.value = a.registration; lookup(); });
   reg.addEventListener("change", lookup);
-  if (reg.value) lookup();
+  // registration not known: no lookup, enter type and airline for a new aircraft
+  var unknown = document.getElementById("reg-unknown");
+  function toggleUnknown() {
+    reg.disabled = unknown.checked;
+    reg.required = !unknown.checked;
+    if (unknown.checked) { info.textContent = ""; newAc.style.display = ""; } else { lookup(); }
+  }
+  unknown.addEventListener("change", toggleUnknown);
+  if (unknown.checked) toggleUnknown();
+  else if (reg.value) lookup();
 })();
 </script>
 {% endblock %}

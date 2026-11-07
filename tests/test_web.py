@@ -164,6 +164,68 @@ def test_nas_scan_military_and_corrected_registration(client, db, tmp_path, monk
         models.Aircraft.registration.in_(["15+11", "MM62243"]))} == {"15+11", "MM62243"}
 
 
+def test_registration_unknown(client, db, tmp_path, monkeypatch):
+    import jobs
+    import queries
+    import_all(db)
+    root = tmp_path / "nas"
+    monkeypatch.setenv("PHOTO_MODE", "nas")
+    monkeypatch.setenv("PHOTO_DIR", str(root))
+    for folder in ["Lufthansa/B77W/Lufthansa B77W/2026-10-31-FRA",
+                   "Lufthansa/B77W/Lufthansa B77W/2026-11-01-MUC"]:
+        d = root / folder
+        d.mkdir(parents=True)
+        fixtures_photos.jpeg_with_exif(str(d / "a.jpg"), gps=None)
+    lh = db.query(models.Airline).filter_by(icao="DLH").one()
+    before = {r.id: (r.x, r.y) for r in queries.fleet_completion(db)}
+
+    client.post("/admin/photos/scan")
+    jobs.wait_idle()
+    db.expire_all()
+    entries = db.query(models.ScanEntry).order_by(models.ScanEntry.folder).all()
+    assert all("registration" in e.problems for e in entries)
+    # ticking "registration unknown" on one folder covers the whole aircraft folder
+    client.post(f"/admin/photos/entry/{entries[0].id}", data={"reg_unknown": "on", "accepted": "on"})
+    client.post(f"/admin/photos/entry/{entries[1].id}", data={"reg_unknown": "on", "accepted": "on"})
+    db.expire_all()
+    assert all(db.get(models.ScanEntry, e.id).problems == [] for e in entries)
+    client.post("/admin/photos/apply")
+    jobs.wait_idle()
+    db.expire_all()
+    unknown = db.query(models.Aircraft).filter_by(reg_unknown=True).all()
+    assert len(unknown) == 1 and unknown[0].registration == "?-1"
+    assert len(unknown[0].sightings) == 2 and unknown[0].airline_id == lh.id
+    assert "Registrierung unbekannt" in client.get(f"/aircraft/{unknown[0].id}").text or \
+        "Registration unknown" in client.get(f"/aircraft/{unknown[0].id}").text
+    # not counted in fleet completion
+    assert {r.id: (r.x, r.y) for r in queries.fleet_completion(db)}.get(lh.id) == before.get(lh.id)
+
+    # quick sighting without registration creates another placeholder
+    client.post("/sightings/new", data={"reg_unknown": "on", "date": "2026-11-02", "airport": "FRA",
+                                        "type_icao": "a20n", "airline": "DLH"})
+    db.expire_all()
+    second = db.query(models.Aircraft).filter_by(registration="?-2").one()
+    assert second.reg_unknown and second.type_icao == "A20N"
+
+    # registration found later: new one renames, existing one merges
+    client.post(f"/aircraft/{unknown[0].id}/edit", data={"registration": "d-aixa", "airline": "Lufthansa"})
+    db.expire_all()
+    renamed = db.get(models.Aircraft, unknown[0].id)
+    assert renamed.registration == "D-AIXA" and not renamed.reg_unknown
+    assert all(o.data.get("registration") == "D-AIXA" for o in db.query(models.FolderOverride)
+               if o.folder == "Lufthansa/B77W/Lufthansa B77W")
+    second_id, renamed_id = second.id, renamed.id
+    client.post(f"/aircraft/{second_id}/edit", data={"registration": "D-AIMH", "airline": "Lufthansa"})
+    db.expire_all()
+    assert db.get(models.Aircraft, second_id) is None
+    aimh = db.query(models.Aircraft).filter_by(registration="D-AIMH").one()
+    assert len(aimh.sightings) == 1 and aimh.sightings[0].date.isoformat() == "2026-11-02"
+    # a known registration cannot be changed this way
+    client.post(f"/aircraft/{renamed_id}/edit", data={"registration": "D-XXXX", "airline": "Lufthansa"})
+    db.expire_all()
+    assert db.get(models.Aircraft, renamed_id).registration == "D-AIXA"
+
+
 def test_two_factor_login(client, db):
     import pyotp
 

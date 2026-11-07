@@ -3,6 +3,7 @@
 {% macro mf(field) %}{% if field in (ac.manual_fields or []) %}<span class="manual" title="{{ t('aircraft.manual_hint') }}">✎</span>{% endif %}{% endmacro %}
 {% block content %}
 <h1>{{ ac.registration }}
+  {% if ac.reg_unknown %}<span class="badge badge-muted">{{ t("aircraft.reg_unknown") }}</span>{% endif %}
   {% if ac.christening_name %}<span class="muted">„{{ ac.christening_name }}“</span>{% endif %}
   {% if ac.active %}<span class="badge badge-muted ok">{{ t("aircraft.active") }}</span>{% else %}<span class="badge badge-muted nok">{{ t("aircraft.inactive") }}</span>{% endif %}
   <span class="count">{{ t("aircraft.seen_times", count=ac.sightings|length) }}</span>

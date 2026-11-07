@@ -42,13 +42,15 @@
   </div>
   {% if e.problems %}<div class="problem">{% for p in e.problems %}{{ t("photos.problem_" ~ p) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
   {% if e.applied %}
-  <p class="muted">{{ e.parsed.registration }} · {{ e.parsed.date }} · {{ e.parsed.airport }}{% if e.sighting_id %} · <a href="/aircraft?q={{ e.parsed.registration }}&field=registration">{{ t("common.open") }}</a>{% endif %}</p>
+  <p class="muted">{{ e.parsed.registration }} · {{ e.parsed.date }} · {{ e.parsed.airport }}{% if e.sighting_id %} · <a href="/aircraft?q={{ e.parsed.registration | urlencode }}&field=registration">{{ t("common.open") }}</a>{% endif %}</p>
   {% else %}
   <div class="form-grid" style="background:none;border:none;padding:0.6rem 0 0">
     {% for f in ["registration", "airline", "type_icao", "christening_name", "livery", "date", "airport"] %}
     <label>{{ t("field." ~ f) }}<input type="text" name="{{ f }}" value="{{ e.parsed.get(f) or '' }}"></label>
     {% endfor %}
   </div>
+  <label class="checkbox" style="margin:0.2rem 0 0.6rem"><input type="checkbox" name="reg_unknown" {{ "checked" if e.parsed.get("reg_unknown") }}> {{ t("aircraft.reg_unknown") }}
+    <span class="muted">– {{ t("photos.reg_unknown_hint") }}</span></label>
   <div class="backup-actions">
     <label class="checkbox" style="margin:0"><input type="checkbox" name="accepted" {{ "checked" if e.accepted }}> {{ t("photos.accept") }}</label>
     <button class="btn-secondary btn-sm">{{ t("photos.save_entry") }}</button>

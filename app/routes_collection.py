@@ -166,6 +166,14 @@ async def aircraft_edit(aircraft_id: int, request: Request, user=Depends(get_adm
         if field in manual:
             manual.remove(field)
     ac.manual_fields = manual
+    new_reg = photos.normalize_registration(form.get("registration") or "")
+    if ac.reg_unknown and new_reg:
+        if not photos.PLAUSIBLE_REG_RE.match(new_reg):
+            db.rollback()
+            flash(request, "registration_invalid")
+            return _redirect(f"/aircraft/{ac.id}/edit")
+        db.flush()
+        ac = scan.set_registration(db, ac, new_reg)
     db.commit()
     flash(request, "saved")
     return _redirect(f"/aircraft/{ac.id}")
@@ -234,7 +242,8 @@ async def sighting_new(request: Request, user=Depends(get_admin), db: Session = 
     form = await request.form()
     values = {k: (form.get(k) or "").strip() for k in
               ("registration", "date", "airport", "spot_id", "livery", "notes", "type_icao", "airline",
-               "christening_name")}
+               "christening_name", "reg_unknown")}
+    reg_unknown = values["reg_unknown"] == "on"
     files = [f for f in form.getlist("photos") if getattr(f, "filename", None)]
 
     def fail(key):
@@ -246,7 +255,7 @@ async def sighting_new(request: Request, user=Depends(get_admin), db: Session = 
         }, status_code=400)
 
     reg = photos.normalize_registration(values["registration"])
-    if not reg:
+    if not reg and not reg_unknown:
         return fail("sighting.error_registration")
     airport = scan.find_airport(db, values["airport"]) if values["airport"] else None
     if values["airport"] and not airport:
@@ -269,9 +278,12 @@ async def sighting_new(request: Request, user=Depends(get_admin), db: Session = 
         shutil.rmtree(tmpdir, ignore_errors=True)
     day = day or date.today()
 
-    ac = scan.find_aircraft(db, reg)
+    ac = None if reg_unknown else scan.find_aircraft(db, reg)
     if not ac:
-        ac = models.Aircraft(registration=reg, source="manual", active=True, manual_fields=[])
+        if reg_unknown:
+            ac = scan.create_unknown_aircraft(db)
+        else:
+            ac = models.Aircraft(registration=reg, source="manual", active=True, manual_fields=[])
         manual = []
         if values["type_icao"]:
             ac.type_icao = values["type_icao"].upper()
@@ -438,7 +450,8 @@ def airline_fleet(airline_id: int, request: Request, show: str = "all", user=Dep
         raise HTTPException(404)
     rows = queries.fleet(db, airline_id, show)
     all_rows = queries.fleet(db, airline_id, "all") if show != "all" else rows
-    active = [r for r in all_rows if r[0].active]
+    # aircraft without known registration are listed but not counted
+    active = [r for r in all_rows if r[0].active and not r[0].reg_unknown]
     x = sum(1 for r in active if r[1])
     return render(request, "airline_fleet.html", {
         "airline": airline, "rows": rows, "show": show, "x": x, "y": len(active),

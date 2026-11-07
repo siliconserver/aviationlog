@@ -227,10 +227,15 @@ async def photos_entry(entry_id: int, request: Request, user=Depends(get_admin),
     form = await request.form()
     values = {}
     for field in scan.AIRCRAFT_FIELDS + scan.DATE_FIELDS:
+        if field in ("reg_unknown", "aircraft_id"):
+            continue
         if field in form:
             new = (form.get(field) or "").strip() or None
             if new != entry.parsed.get(field):
                 values[field] = new
+    reg_unknown = form.get("reg_unknown") == "on"
+    if reg_unknown != bool(entry.parsed.get("reg_unknown")):
+        values["reg_unknown"] = reg_unknown
     if values:
         scan.save_override(db, entry.folder, values)
     parsed, problems, sighting_id = scan.analyze(db, entry.folder)

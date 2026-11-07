@@ -4,6 +4,12 @@
 <h1>{{ t("common.edit") }}: {{ ac.registration }}</h1>
 <p class="muted">{{ t("aircraft.edit_hint") }}</p>
 <form method="post" action="/aircraft/{{ ac.id }}/edit" class="form-grid">
+  {% if ac.reg_unknown %}
+  <label class="full">{{ t("field.registration") }}
+    <input type="text" name="registration" value="" placeholder="D-AIJC" style="text-transform: uppercase">
+    <span class="hint">{{ t("aircraft.reg_unknown_set_hint") }}</span>
+  </label>
+  {% endif %}
   {% for f in fields %}
   {% if f == "notes" %}
   <label class="full">{{ t("field." ~ f) }}<textarea name="notes" rows="3">{{ ac.notes or "" }}</textarea></label>
