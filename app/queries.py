@@ -187,7 +187,7 @@ def fleet_completion(db, limit: int | None = None):
             func.sum(case((A.active.is_(True), 1), else_=0)).label("y"),
             func.sum(spotted).label("spotted_total"),
         )
-        .join(A, A.airline_id == models.Airline.id)
+        .join(A, and_(A.airline_id == models.Airline.id, A.reg_unknown.is_(False)))
         .group_by(models.Airline.id)
         .having(func.sum(spotted) > 0)
         .order_by(func.sum(spotted).desc(), models.Airline.name)

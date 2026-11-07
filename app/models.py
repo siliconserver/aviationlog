@@ -153,6 +153,8 @@ class Aircraft(Base):
     production_site: Mapped[str | None] = mapped_column(String(255))
     engines: Mapped[str | None] = mapped_column(String(255))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # registration not known yet: placeholder registration "?-<n>", not counted in fleet completion
+    reg_unknown: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     notes: Mapped[str | None] = mapped_column(Text)
     cover_photo_id: Mapped[int | None] = mapped_column(
         ForeignKey("photos.id", ondelete="SET NULL", use_alter=True, name="fk_aircraft_cover_photo")

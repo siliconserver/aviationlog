@@ -99,6 +99,7 @@ def migrate():
     Base.metadata.create_all(bind=engine)
     with engine.begin() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+        conn.execute(text("ALTER TABLE aircraft ADD COLUMN IF NOT EXISTS reg_unknown boolean NOT NULL DEFAULT false"))
         conn.execute(text(
             "CREATE INDEX IF NOT EXISTS ix_aircraft_registration_trgm ON aircraft "
             "USING gin (registration gin_trgm_ops)"

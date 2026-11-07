@@ -55,7 +55,11 @@ def safe_join(rel_path: str) -> Path:
 
 # ---- Folder names -----------------------------------------------------------------
 
-REG_RE = re.compile(r"^[A-Z0-9]{1,4}(-[A-Z0-9]{1,6})?$|^N[0-9]{1,5}[A-Z]{0,2}$")
+# Civil registrations (D-AIJC, N123AB) and German military serials (15+11). Used to spot folders
+# where the first word is not a registration at all ("Emirates B77W").
+REG_RE = re.compile(r"^[A-Z0-9]{1,4}(-[A-Z0-9]{1,6})?$|^N[0-9]{1,5}[A-Z]{0,2}$|^[0-9]{2}\+[0-9]{2}$")
+# Anything a user may enter by hand as a registration or military serial (MM62243, 11-5101, ZZ336).
+PLAUSIBLE_REG_RE = re.compile(r"^[A-Z0-9][A-Z0-9+.-]{0,15}$")
 DATE_DIR_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})[-_ ]+([A-Za-z0-9]{3,4})\b\s*(.*)$")
 
 
@@ -151,6 +155,8 @@ def build_folder(airline: str, type_icao: str, registration: str, christening_na
     """Relative date folder for an uploaded photo, following the folder scheme."""
     airline = _clean_component(airline)
     type_icao = _clean_component(type_icao or "UNKN")
+    if registration.startswith("?-"):
+        registration = "UNKNOWN" + registration[1:]  # placeholder "?-3" -> "UNKNOWN-3"
     ac = f"{registration} {airline} {type_icao}"
     if christening_name:
         ac += f" {christening_name}"
