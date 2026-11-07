@@ -3,6 +3,10 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.1.1 (2026-11-07)
+- Fix: the OpenSky import failed with "ON CONFLICT DO UPDATE command cannot affect row a second time" when the file lists a registration more than once; such entries are now merged
+- README: Traefik setup with the proxy network
+
 ## 0.1 (2026-11-07)
 - First version: aircraft, sightings and photos with search across all fields
 - Master data import from OpenSky, OurAirports and OpenFlights with review before applying; values edited by hand are protected
