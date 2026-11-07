@@ -18,7 +18,7 @@
 {% set b = batches.get(key) %}
 <section class="panel">
   <h2>{{ src.label }} <span class="count">{{ t("entity." ~ src.entity) }}</span></h2>
-  <p class="muted">{{ t("data.license") }}: {{ src.license }} · <a href="{{ src.info }}" target="_blank" rel="noopener">{{ t("data.info") }}</a></p>
+  <p class="muted">{{ t("data.license") }}: {% if src.notice == "opensky" %}OpenSky Network, {{ t("opensky.license") }} · {{ m.opensky_tip(t("data.info"), src.info, "opensky-note-" ~ key) }}{% else %}{{ src.license }} · <a href="{{ src.info }}" target="_blank" rel="noopener">{{ t("data.info") }}</a>{% endif %}</p>
   {% if b %}
   <p>
     {{ t("data.last_import") }}: {{ b.created_at | d(lang) }} · <strong>{{ t("data.status." ~ b.status) }}</strong>

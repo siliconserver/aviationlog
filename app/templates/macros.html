@@ -49,3 +49,16 @@
   <a href="/admin/backups"{% if active == 'backups' %} style="color: var(--accent)"{% endif %}>{{ t("nav.backups") }}</a>
 </div>
 {%- endmacro %}
+
+
+{# OpenSky asks to show that its data comes "as is" and to cite its paper. Shown on hover,
+   keyboard focus and tap (the small i button). #}
+{% macro opensky_tip(label, href, id) -%}
+<span class="info-tip"><a href="{{ href }}" target="_blank" rel="noopener" aria-describedby="{{ id }}">{{ label }}</a><button type="button" class="info-tip-btn" aria-expanded="false" aria-controls="{{ id }}" aria-label="{{ t('opensky.notice_title') }}">i</button><span class="info-tip-box" role="tooltip" id="{{ id }}">
+<strong>{{ t("opensky.notice_title") }}</strong>
+<span>{{ t("opensky.notice") }}</span>
+<span>{{ t("opensky.cite") }}</span>
+<cite>Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic, and Matthias Wilhelm. "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research". In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</cite>
+<span>{{ t("opensky.website") }} <a href="https://opensky-network.org/" target="_blank" rel="noopener">The OpenSky Network</a></span>
+</span></span>
+{%- endmacro %}

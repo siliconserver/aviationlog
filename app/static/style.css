@@ -426,3 +426,31 @@ code {
 .hint { font-size: 0.85rem; color: var(--text-muted); margin-top: -0.6rem; margin-bottom: 1rem; }
 .exif td:first-child { color: var(--text-muted); padding-right: 1rem; }
 .leaflet-popup-content a { color: #1d4ed8; }
+
+/* info box (e.g. OpenSky notice): hover, keyboard focus or tap on the i button */
+.info-tip { position: relative; display: inline-block; }
+.info-tip-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.15rem; height: 1.15rem; margin-left: .3rem; padding: 0;
+  border: 1px solid var(--border-hover); border-radius: 50%;
+  background: transparent; color: var(--text-muted);
+  font: italic 600 .72rem/1 Georgia, serif; cursor: pointer; vertical-align: text-top;
+}
+.info-tip-btn:hover, .info-tip-btn:focus-visible { color: var(--accent); border-color: var(--accent); }
+.info-tip-box {
+  display: none; position: absolute; left: 0; top: 100%; z-index: 50;
+  width: min(28rem, 85vw); padding: .75rem .9rem;
+  background: var(--bg-alt); border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+  color: var(--text); font-size: .85rem; line-height: 1.45; text-align: left; white-space: normal;
+}
+.info-tip-box > * { display: block; margin-top: .45rem; }
+.info-tip-box > :first-child { margin-top: 0; }
+.info-tip-box cite { color: var(--text-muted); }
+.info-tip:hover .info-tip-box, .info-tip:focus-within .info-tip-box, .info-tip.open .info-tip-box { display: block; }
+.info-tip.closed .info-tip-box { display: none; }
+@media (max-width: 600px) {
+  /* full width just below the line, so the box never covers the i button */
+  .info-tip { position: static; }
+  .info-tip-box { left: 4vw; right: 4vw; top: auto; width: auto; margin-top: .3rem; }
+}

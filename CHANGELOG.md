@@ -3,6 +3,10 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.1.3 (2026-11-07)
+- OpenSky notice: the aircraft database is unlicensed and provided "as is"; the notice and the paper OpenSky asks to cite are shown as an info box at "More about the source" (Master data) and at OpenSky Network (About), on hover, keyboard focus or tap
+- Corrected the OpenSky license line: unlicensed, provided "as is"
+
 ## 0.1.2 (2026-11-07)
 - Fix: map tiles from OpenStreetMap failed with 403 when the reverse proxy sets a strict Referrer-Policy; the map now always sends the origin as Referer
 
