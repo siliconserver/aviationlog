@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ t("nav.photos") }}{% endblock %}
+{% block content %}
+<h1>{{ t("nav.photos") }} <span class="count">{{ t("photos.mode_" ~ photo_mode) }}</span></h1>
+{{ m.admin_nav("photos") }}
+<p class="muted">{{ t("photos.folder") }}: <code>{{ photo_dir }}</code> · {{ t("photos.count", count=photo_count) }}</p>
+<p class="muted">{{ t("photos.scheme") }}: <code>Airline/Type (ICAO)/REG Airline Type [Name] [(Livery)]/YYYY-MM-DD-IATA/</code></p>
+
+{{ m.job_status(job or last_job) }}
+
+<div class="actions" style="margin-bottom:1.2rem">
+  {% if photo_mode == "nas" %}
+  <form method="post" action="/admin/photos/scan" class="inline-form"><button class="btn" {{ "disabled" if job }}>{{ t("photos.scan") }}</button></form>
+  {% endif %}
+  <form method="post" action="/admin/photos/thumbnails" class="inline-form"><button class="btn-secondary" {{ "disabled" if job }}>{{ t("photos.thumbnails") }}</button></form>
+  <form method="post" action="/admin/photos/remove-missing" class="inline-form" data-confirm="{{ t('photos.remove_missing_confirm') }}"><button class="btn-secondary" {{ "disabled" if job }}>{{ t("photos.remove_missing") }}</button></form>
+</div>
+
+{% if photo_mode == "nas" %}
+<p class="muted">{{ t("photos.nas_hint") }}</p>
+{% if not has_airports %}<div class="alert alert-error">{{ t("photos.need_airports") }} <a href="/admin/data">{{ t("nav.master_data") }} →</a></div>{% endif %}
+{% if scan_job %}
+<h2>{{ t("photos.review") }}</h2>
+<div class="tabs">
+  <a href="?show=open" class="{{ 'active' if show == 'open' }}">{{ t("photos.tab_open") }} ({{ counts.open }})</a>
+  <a href="?show=problems" class="{{ 'active' if show == 'problems' }}">{{ t("photos.tab_problems") }} ({{ counts.problems }})</a>
+  <a href="?show=applied" class="{{ 'active' if show == 'applied' }}">{{ t("photos.tab_applied") }} ({{ counts.applied }})</a>
+</div>
+{% if counts.open %}
+<form method="post" action="/admin/photos/apply" class="actions" style="margin:0 0 1rem"><button class="btn" {{ "disabled" if job }}>{{ t("photos.apply") }}</button>
+  <span class="muted">{{ t("photos.apply_hint") }}</span></form>
+{% endif %}
+{% for e in entries %}
+<form method="post" action="/admin/photos/entry/{{ e.id }}" class="sighting">
+  <input type="hidden" name="back" value="/admin/photos?show={{ show }}&page={{ page }}">
+  <div class="sighting-head">
+    <h3 style="word-break: break-all">{{ e.folder }}</h3>
+    <span class="muted">{{ t("photos.files", count=e.files|length) }}
+      {% if e.sighting_id %} · {{ t("photos.matched") }}{% endif %}
+      {% if e.parsed.get("known_aircraft") == false %} · {{ t("photos.new_aircraft") }}{% endif %}</span>
+  </div>
+  {% if e.problems %}<div class="problem">{% for p in e.problems %}{{ t("photos.problem_" ~ p) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+  {% if e.applied %}
+  <p class="muted">{{ e.parsed.registration }} · {{ e.parsed.date }} · {{ e.parsed.airport }}{% if e.sighting_id %} · <a href="/aircraft?q={{ e.parsed.registration }}&field=registration">{{ t("common.open") }}</a>{% endif %}</p>
+  {% else %}
+  <div class="form-grid" style="background:none;border:none;padding:0.6rem 0 0">
+    {% for f in ["registration", "airline", "type_icao", "christening_name", "livery", "date", "airport"] %}
+    <label>{{ t("field." ~ f) }}<input type="text" name="{{ f }}" value="{{ e.parsed.get(f) or '' }}"></label>
+    {% endfor %}
+  </div>
+  <div class="backup-actions">
+    <label class="checkbox" style="margin:0"><input type="checkbox" name="accepted" {{ "checked" if e.accepted }}> {{ t("photos.accept") }}</label>
+    <button class="btn-secondary btn-sm">{{ t("photos.save_entry") }}</button>
+  </div>
+  {% endif %}
+</form>
+{% else %}
+<p class="muted">{{ t("common.no_data") }}</p>
+{% endfor %}
+{{ m.pager(page, pages, "?show=" ~ show) }}
+{% endif %}
+{% else %}
+<p class="muted">{{ t("photos.upload_hint") }}</p>
+{% endif %}
+{% endblock %}

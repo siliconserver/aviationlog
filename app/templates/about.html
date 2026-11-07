@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{{ t("nav.about") }}{% endblock %}
+{% block content %}
+<h1>AviationLog <span class="count">{{ APP_VERSION }}</span></h1>
+<section class="panel">
+  <p>{{ t("about.text") }}</p>
+  <p><a href="https://github.com/siliconserver/aviationlog" target="_blank" rel="noopener">{{ t("about.source") }}</a> ·
+     <a href="https://github.com/siliconserver/aviationlog/issues" target="_blank" rel="noopener">{{ t("about.issues") }}</a></p>
+  <h3>{{ t("about.data_sources") }}</h3>
+  <ul class="muted">
+    <li><a href="https://opensky-network.org/" target="_blank" rel="noopener">OpenSky Network</a> – {{ t("about.opensky") }}</li>
+    <li><a href="https://ourairports.com/" target="_blank" rel="noopener">OurAirports</a> – {{ t("about.ourairports") }}</li>
+    <li><a href="https://openflights.org/data" target="_blank" rel="noopener">OpenFlights</a> – {{ t("about.openflights") }}</li>
+    <li><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> – {{ t("about.osm") }}</li>
+  </ul>
+</section>
+<h2>{{ t("about.changelog") }}</h2>
+{% for entry in CHANGELOG %}
+<section class="panel">
+  <h3 style="margin-top:0">{{ entry.version }} <span class="muted">{{ entry.date }}</span></h3>
+  <ul>{% for item in entry["items"] %}<li>{{ item }}</li>{% endfor %}</ul>
+</section>
+{% endfor %}
+{% endblock %}

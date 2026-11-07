@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}{{ t("profile.2fa") }}{% endblock %}
+{% block content %}
+<h1>{{ t("profile.2fa_setup") }}</h1>
+<section class="panel">
+  <p>{{ t("profile.2fa_step1") }}</p>
+  <div style="max-width:220px; background:white; padding:0.8rem; border-radius:var(--radius); margin-bottom:1rem;">{{ qr_svg | safe }}</div>
+  <p class="muted">{{ t("profile.2fa_manual_key") }}: <code>{{ secret }}</code></p>
+  <p style="margin-top:1.5rem;">{{ t("profile.2fa_step2") }}</p>
+  <form method="post" action="/profile/2fa/setup">
+    <label>{{ t("login.2fa_code") }}
+      <input type="text" name="code" inputmode="numeric" pattern="[0-9 ]*" autocomplete="one-time-code" required autofocus>
+    </label>
+    <div class="actions">
+      <button type="submit" class="btn">{{ t("profile.2fa_activate") }}</button>
+      <a href="/profile" class="btn-secondary">{{ t("common.cancel") }}</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

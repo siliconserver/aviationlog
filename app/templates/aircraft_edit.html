@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ ac.registration }}{% endblock %}
+{% block content %}
+<h1>{{ t("common.edit") }}: {{ ac.registration }}</h1>
+<p class="muted">{{ t("aircraft.edit_hint") }}</p>
+<form method="post" action="/aircraft/{{ ac.id }}/edit" class="form-grid">
+  {% for f in fields %}
+  {% if f == "notes" %}
+  <label class="full">{{ t("field." ~ f) }}<textarea name="notes" rows="3">{{ ac.notes or "" }}</textarea></label>
+  {% else %}
+  <label>{{ t("field." ~ f) }}{% if f in (ac.manual_fields or []) %} <span class="manual">✎</span>{% endif %}
+    <input type="{{ 'date' if f == 'delivery_date' else 'text' }}" name="{{ f }}" value="{{ (ac[f].isoformat() if f == 'delivery_date' and ac[f] else ac[f]) or '' }}"
+      {% if f == 'built' or f == 'first_flight' %}placeholder="YYYY or YYYY-MM-DD"{% endif %}>
+  </label>
+  {% endif %}
+  {% endfor %}
+  <label>{{ t("field.airline") }}{% if "airline_id" in (ac.manual_fields or []) %} <span class="manual">✎</span>{% endif %}
+    <input type="text" name="airline" value="{{ ac.airline.name if ac.airline else '' }}" placeholder="{{ t('aircraft.airline_placeholder') }}">
+  </label>
+  <label class="checkbox"><input type="checkbox" name="active" {{ "checked" if ac.active }}> {{ t("aircraft.active") }}</label>
+  {% if ac.manual_fields %}
+  <div class="full">
+    <span class="label">{{ t("aircraft.unlock") }}</span>
+    <p class="hint" style="margin-top:0.3rem">{{ t("aircraft.unlock_hint") }}</p>
+    {% for f in ac.manual_fields %}<label class="checkbox"><input type="checkbox" name="unlock" value="{{ f }}"> {{ t("field." ~ ("airline" if f == "airline_id" else f)) }}</label>{% endfor %}
+  </div>
+  {% endif %}
+  <div class="full actions">
+    <button class="btn">{{ t("common.save") }}</button>
+    <a class="btn-secondary" href="/aircraft/{{ ac.id }}">{{ t("common.cancel") }}</a>
+  </div>
+</form>
+{% endblock %}

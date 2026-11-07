@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}{{ t("nav.map") }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">{% endblock %}
+{% block content %}
+<h1>{{ t("nav.map") }}</h1>
+<p class="muted">{{ t("map.intro") }}</p>
+<div id="map" class="map"></div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+<script>
+(function () {
+  var T = {sightings: {{ t("map.sightings") | tojson }}, open: {{ t("map.open_airport") | tojson }}};
+  var map = L.map("map").setView([50, 10], 4);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+  function esc(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+  fetch("/api/map").then(function (r) { return r.json(); }).then(function (data) {
+    var bounds = [];
+    data.airports.forEach(function (a) {
+      bounds.push([a.lat, a.lon]);
+      L.circleMarker([a.lat, a.lon], {radius: 6 + Math.min(14, Math.sqrt(a.n) * 2), color: "#3b82f6", fillOpacity: 0.5}).addTo(map)
+        .bindPopup("<strong>" + esc(a.code) + "</strong> " + esc(a.name) + "<br>" + T.sightings.replace("{count}", a.n) +
+                   '<br><a href="/airports/' + a.id + '">' + T.open + "</a>");
+    });
+    data.spots.forEach(function (s) {
+      bounds.push([s.lat, s.lon]);
+      L.marker([s.lat, s.lon]).addTo(map)
+        .bindPopup("<strong>" + esc(s.name) + "</strong> (" + esc(s.airport) + ")<br>" + T.sightings.replace("{count}", s.n) +
+                   '<br><a href="/airports/' + s.airport_id + '">' + T.open + "</a>");
+    });
+    if (bounds.length) map.fitBounds(bounds, {padding: [40, 40], maxZoom: 12});
+  });
+})();
+</script>
+{% endblock %}

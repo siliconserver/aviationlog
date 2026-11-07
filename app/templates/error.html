@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}{{ status }}{% endblock %}
+{% block content %}
+<h1>{{ t("error.title", status=status) }}</h1>
+<p class="muted">{% if status == 404 %}{{ t("error.404") }}{% elif status == 403 %}{{ t("error.403") }}{% else %}{{ detail }}{% endif %}</p>
+<p><a href="/">← {{ t("nav.dashboard") }}</a></p>
+{% endblock %}

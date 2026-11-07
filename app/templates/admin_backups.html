@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ t("nav.backups") }}{% endblock %}
+{% block content %}
+<h1>{{ t("nav.backups") }}</h1>
+{{ m.admin_nav("backups") }}
+<p class="muted">{{ t("backups.intro") }}</p>
+<form method="post" action="/admin/backups/schedule" class="search-bar">
+  <label>{{ t("backups.time") }}<input type="time" name="backup_time" value="{{ backup_time }}" required></label>
+  <label>{{ t("backups.retention") }}<input type="number" name="backup_retention" value="{{ backup_retention }}" min="1" max="365" required></label>
+  <div class="actions"><button class="btn-secondary">{{ t("common.save") }}</button></div>
+</form>
+<div class="actions" style="margin-bottom:1rem">
+  <form method="post" action="/admin/backups/run" class="inline-form"><button class="btn">{{ t("backups.run") }}</button></form>
+  <form method="post" action="/admin/backups/upload" enctype="multipart/form-data" class="inline-form backup-actions">
+    <input type="file" name="file" accept=".gz" required><button class="btn-secondary">{{ t("backups.upload") }}</button>
+  </form>
+</div>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th>{{ t("backups.file") }}</th><th>{{ t("backups.size") }}</th><th>{{ t("backups.created") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for b in backups %}
+  <tr>
+    <td>{{ b.filename }}</td><td>{{ b.size_kb }} KB</td><td>{{ b.created_at | d(lang) }}</td>
+    <td class="wrap"><div class="backup-actions">
+      <a class="btn-secondary btn-sm" href="/admin/backups/{{ b.filename }}/download">{{ t("backups.download") }}</a>
+      <form method="post" action="/admin/backups/{{ b.filename }}/restore" class="inline-form backup-actions">
+        <input type="text" name="confirm" placeholder="RESTORE" style="width: 110px">
+        <button class="btn-secondary btn-sm">{{ t("backups.restore") }}</button>
+      </form>
+      <form method="post" action="/admin/backups/{{ b.filename }}/delete" class="inline-form" data-confirm="{{ t('backups.delete_confirm') }}"><button class="btn btn-danger btn-sm">{{ t("common.delete") }}</button></form>
+    </div></td>
+  </tr>
+  {% else %}<tr><td colspan="4" class="muted">{{ t("common.no_data") }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="muted">{{ t("backups.restore_hint") }}</p>
+{% endblock %}

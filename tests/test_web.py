@@ -1,0 +1,139 @@
+import re
+from datetime import date
+
+import fixtures_photos
+import models
+from test_import import import_all
+
+
+def test_login_required(db):
+    from fastapi.testclient import TestClient
+
+    import main
+
+    with TestClient(main.app) as c:
+        r = c.get("/aircraft", follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/login"
+        r = c.post("/login", data={"username": "admin", "password": "wrong"})
+        assert r.status_code == 401
+
+
+def test_pages_render(client, db):
+    import_all(db)
+    for url in ["/", "/aircraft", "/aircraft?scope=all&q=lufthansa", "/airlines", "/airports", "/airports?q=MUC",
+                "/map", "/api/map", "/profile", "/about", "/admin/data", "/admin/photos", "/admin/users",
+                "/admin/backups", "/export.csv", "/sightings/new", "/lang/de", "/aircraft"]:
+        r = client.get(url)
+        assert r.status_code == 200, url
+    assert "Flugzeuge" in client.get("/aircraft").text  # switched to German
+
+
+def test_upload_sighting_with_photo(client, db, tmp_path, monkeypatch):
+    import_all(db)
+    monkeypatch.setenv("PHOTO_MODE", "upload")
+    monkeypatch.setenv("PHOTO_DIR", str(tmp_path / "photos"))
+    jpg = tmp_path / "DSC1.jpg"
+    fixtures_photos.jpeg_with_exif(str(jpg))
+    airport = db.query(models.Airport).filter_by(iata="FRA").one()
+    db.add(models.Spot(airport_id=airport.id, name="Terrace", lat=50.0406, lon=8.5861))
+    db.commit()
+    with open(jpg, "rb") as fh:
+        r = client.post("/sightings/new", data={"registration": "daijc", "date": "", "airport": "fra"},
+                        files=[("photos", ("DSC1.jpg", fh, "image/jpeg"))])
+    assert r.status_code == 200
+    db.expire_all()
+    ac = db.query(models.Aircraft).filter_by(registration="D-AIJC").one()
+    s = ac.sightings[0]
+    assert s.date == date(2026, 6, 5)  # from EXIF
+    assert s.spot.name == "Terrace"  # from GPS
+    photo = s.photos[0]
+    assert photo.lens.startswith("FE 100-400")
+    assert (tmp_path / "photos" / photo.path).exists()
+    assert photo.path.startswith("Lufthansa/A20N/D-AIJC Lufthansa A20N/2026-06-05-FRA/")
+    assert ac.cover_photo_id == photo.id
+    assert client.get(f"/photos/{photo.id}/thumb/s").headers["content-type"] == "image/jpeg"
+    assert "ILCE-7RM5" in client.get(f"/photos/{photo.id}").text
+    assert "D-AIJC" in client.get("/aircraft?field=lens&q=100-400").text
+    csv = client.get("/export.csv").text
+    assert "D-AIJC" in csv and "Terrace" in csv
+    fleet = client.get(f"/airlines/{ac.airline_id}").text
+    assert "1 / 4" in fleet
+
+
+def test_nas_scan(client, db, tmp_path, monkeypatch):
+    import jobs
+    import_all(db)
+    root = tmp_path / "nas"
+    monkeypatch.setenv("PHOTO_MODE", "nas")
+    monkeypatch.setenv("PHOTO_DIR", str(root))
+    for folder in ["Lufthansa/A20N/D-AIJC Lufthansa A20N Lünen/2026-06-05-FRA",
+                   "SunExpress/B738/TC-SOZ SunExpress (Istanbul Livery) B738/2026-06-15-CGN",
+                   "German Airways/E190/D-AJHW German Airways E190/2026-08-10-XXX"]:
+        d = root / folder
+        d.mkdir(parents=True)
+        fixtures_photos.jpeg_with_exif(str(d / "a.jpg"), gps=None)
+        fixtures_photos.fake_arw(str(d / "a.arw"))
+    # quick sighting from the phone, to be matched by the scan
+    client.post("/sightings/new", data={"registration": "TC-SOZ", "date": "2026-06-15", "airport": "CGN"})
+
+    client.post("/admin/photos/scan")
+    jobs.wait_idle()
+    db.expire_all()
+    entries = {e.folder.split("/")[2].split()[0]: e for e in db.query(models.ScanEntry)}
+    assert entries["D-AJHW"].problems == ["airport"] and not entries["D-AJHW"].accepted
+    assert entries["TC-SOZ"].sighting_id is not None
+
+    # correct the airport of the German Airways folder
+    r = client.post(f"/admin/photos/entry/{entries['D-AJHW'].id}",
+                    data={"airport": "FRA", "registration": "D-AJHW", "accepted": "on"})
+    assert r.status_code == 200
+    client.post("/admin/photos/apply")
+    jobs.wait_idle()
+    db.expire_all()
+    soz = db.query(models.Aircraft).filter_by(registration="TC-SOZ").one()
+    assert len(soz.sightings) == 1 and len(soz.sightings[0].photos) == 2
+    assert soz.sightings[0].livery == "Istanbul Livery"
+    ijc = db.query(models.Aircraft).filter_by(registration="D-AIJC").one()
+    assert ijc.christening_name == "Lünen"
+    ajhw = db.query(models.Aircraft).filter_by(registration="D-AJHW").one()
+    assert ajhw.airline.name == "German Airways" and ajhw.sightings[0].airport.iata == "FRA"
+    assert db.query(models.FolderOverride).count() == 1
+
+    # second scan finds nothing new; files on the NAS were not touched
+    client.post("/admin/photos/scan")
+    jobs.wait_idle()
+    db.expire_all()
+    latest = db.query(models.Job).filter_by(kind="scan").order_by(models.Job.id.desc()).first()
+    assert latest.result["folders"] == 0
+    assert sorted(p.name for p in (root / "Lufthansa/A20N").rglob("*")) == sorted(
+        ["D-AIJC Lufthansa A20N Lünen", "2026-06-05-FRA", "a.jpg", "a.arw"])
+    # uploads are refused in NAS mode
+    r = client.post("/sightings/new", data={"registration": "D-AIMH", "airport": "FRA"},
+                    files=[("photos", ("x.jpg", b"123", "image/jpeg"))])
+    assert r.status_code == 400
+
+
+def test_two_factor_login(client, db):
+    import pyotp
+
+    r = client.get("/profile/2fa/setup")
+    secret = re.search(r"<code>([A-Z2-7]+)</code>", r.text).group(1)
+    r = client.post("/profile/2fa/setup", data={"code": pyotp.TOTP(secret).now()})
+    codes = re.findall(r"<li>([a-z0-9]{5}-[a-z0-9]{5})</li>", r.text)
+    assert len(codes) == 10
+    client.get("/logout")
+    r = client.post("/login", data={"username": "admin", "password": "admin-password"})
+    assert "/login/2fa" in str(r.url)
+    r = client.post("/login/2fa", data={"code": "000000"})
+    assert r.status_code == 401
+    r = client.post("/login/2fa", data={"code": codes[0]})
+    assert r.status_code == 200 and "/login" not in str(r.url)
+
+
+def test_viewer_cannot_write(client, db):
+    client.post("/admin/users/new", data={"username": "leser", "password": "leser-pass", "role": "viewer"})
+    client.get("/logout")
+    client.post("/login", data={"username": "leser", "password": "leser-pass"})
+    assert client.get("/aircraft").status_code == 200
+    assert client.get("/sightings/new").status_code == 403
+    assert client.post("/admin/photos/scan").status_code == 403

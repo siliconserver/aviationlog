@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ t("nav.master_data") }}{% endblock %}
+{% block content %}
+<h1>{{ t("nav.master_data") }}</h1>
+{{ m.admin_nav("data") }}
+<p class="muted">{{ t("data.intro") }}</p>
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-value">{{ counts.aircraft | n(lang) }}</div><div class="stat-label">{{ t("entity.aircraft") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ counts.airport | n(lang) }}</div><div class="stat-label">{{ t("entity.airport") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ counts.airline | n(lang) }}</div><div class="stat-label">{{ t("entity.airline") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ counts.type | n(lang) }}</div><div class="stat-label">{{ t("entity.type") }}</div></div>
+</div>
+
+{{ m.job_status(job or last_job) }}
+
+{% for key, src in sources.items() %}
+{% set b = batches.get(key) %}
+<section class="panel">
+  <h2>{{ src.label }} <span class="count">{{ t("entity." ~ src.entity) }}</span></h2>
+  <p class="muted">{{ t("data.license") }}: {{ src.license }} · <a href="{{ src.info }}" target="_blank" rel="noopener">{{ t("data.info") }}</a></p>
+  {% if b %}
+  <p>
+    {{ t("data.last_import") }}: {{ b.created_at | d(lang) }} · <strong>{{ t("data.status." ~ b.status) }}</strong>
+    {% if b.stats %}· {{ t("data.stats", new=b.stats.get("new", 0), changed=b.stats.get("changed", 0), collection=b.stats.get("changed_in_collection", 0)) }}{% endif %}
+    {% if b.message %}<span class="nok">{{ b.message }}</span>{% endif %}
+  </p>
+  {% if b.status == "ready" %}<p><a class="btn" href="/admin/data/batch/{{ b.id }}">{{ t("data.review") }} →</a></p>{% endif %}
+  {% endif %}
+  <div class="actions">
+    <form method="post" action="/admin/data/{{ key }}/download" class="inline-form"><button class="btn-secondary" {{ "disabled" if job }}>{{ t("data.download") }}</button></form>
+    <form method="post" action="/admin/data/{{ key }}/upload" enctype="multipart/form-data" class="inline-form backup-actions">
+      <input type="file" name="file" accept=".csv,.dat,.txt" required>
+      <button class="btn-secondary" {{ "disabled" if job }}>{{ t("data.upload") }}</button>
+    </form>
+  </div>
+</section>
+{% endfor %}
+{% endblock %}

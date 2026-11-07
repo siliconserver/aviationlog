@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{{ t("nav.airports") }}{% endblock %}
+{% block content %}
+<h1>{{ t("nav.airports") }}</h1>
+<form method="get" class="search-bar">
+  <label>{{ t("airport.search") }}<input type="text" name="q" value="{{ q }}" placeholder="MUC, EDDM, Munich …"></label>
+  <div class="actions"><button class="btn">{{ t("search.submit") }}</button></div>
+</form>
+{% if q %}
+<h2>{{ t("airport.results") }}</h2>
+<div class="table-wrap">
+<table class="data-table clickable-rows">
+  <thead><tr><th>IATA</th><th>ICAO</th><th>{{ t("field.name") }}</th><th class="hide-sm">{{ t("airport.city") }}</th></tr></thead>
+  <tbody>{% for a in results %}<tr data-href="/airports/{{ a.id }}"><td>{{ a.iata or "" }}</td><td>{{ a.icao or "" }}</td><td><a href="/airports/{{ a.id }}">{{ a.name }}</a></td><td class="hide-sm">{{ a.municipality or "" }} {{ a.country or "" }}</td></tr>
+  {% else %}<tr><td colspan="4" class="muted">{{ t("search.no_results") }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% endif %}
+<h2 style="margin-top:1.5rem">{{ t("airport.visited") }} <span class="count">{{ visited | length }}</span></h2>
+{% if visited %}
+<div class="table-wrap">
+<table class="data-table clickable-rows">
+  <thead><tr><th>IATA</th><th>ICAO</th><th>{{ t("field.name") }}</th><th>{{ t("stats.sightings") }}</th><th class="hide-sm">{{ t("airport.spots") }}</th></tr></thead>
+  <tbody>{% for a, n in visited %}<tr data-href="/airports/{{ a.id }}"><td>{{ a.iata or "" }}</td><td>{{ a.icao or "" }}</td><td><a href="/airports/{{ a.id }}">{{ a.name }}</a></td><td>{{ n }}</td><td class="hide-sm">{{ a.spots | length }}</td></tr>{% endfor %}</tbody>
+</table>
+</div>
+{% else %}<p class="muted">{{ t("common.no_data") }}</p>{% endif %}
+{% endblock %}

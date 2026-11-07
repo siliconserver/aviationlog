@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}"{% if user and user.theme in ("light", "dark") %} data-theme="{{ user.theme }}"{% endif %}>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>{% block title %}AviationLog{% endblock %} · AviationLog</title>
+<link rel="stylesheet" href="/static/style.css?v={{ APP_VERSION }}">
+<link rel="manifest" href="/static/manifest.json">
+{% if user and user.theme == "light" %}
+<meta name="theme-color" content="#f5f6f8">
+{% elif user and user.theme == "dark" %}
+<meta name="theme-color" content="#16181d">
+{% else %}
+<meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16181d" media="(prefers-color-scheme: dark)">
+{% endif %}
+<link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AviationLog">
+{% block head %}{% endblock %}
+</head>
+<body>
+{% if user %}
+<nav class="navbar">
+  <div class="nav-brand"><a href="/">✈ AviationLog</a></div>
+  <div class="nav-links">
+    <a href="/">{{ t("nav.dashboard") }}</a>
+    <a href="/aircraft">{{ t("nav.aircraft") }}</a>
+    <a href="/airlines">{{ t("nav.fleets") }}</a>
+    <a href="/airports">{{ t("nav.airports") }}</a>
+    <a href="/map">{{ t("nav.map") }}</a>
+    {% if user.role.value == "admin" %}
+    <a href="/sightings/new">+ {{ t("nav.new_sighting") }}</a>
+    <div class="nav-dropdown">
+      <a href="/admin/data">{{ t("nav.admin") }}</a>
+      <div class="nav-dropdown-menu">
+        <a href="/admin/data">{{ t("nav.master_data") }}</a>
+        <a href="/admin/photos">{{ t("nav.photos") }}</a>
+        <a href="/admin/users">{{ t("nav.users") }}</a>
+        <a href="/admin/backups">{{ t("nav.backups") }}</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  <div class="nav-user">
+    <div class="nav-dropdown">
+      <span>{{ user.username }} <span class="role-badge">{{ t("role." ~ user.role.value) }}</span></span>
+      <div class="nav-dropdown-menu">
+        <a href="/profile">{{ t("nav.profile") }}</a>
+        <a href="/export.csv">{{ t("nav.export") }}</a>
+      </div>
+    </div>
+    <a href="/logout" class="logout">{{ t("nav.logout") }}</a>
+  </div>
+</nav>
+{% endif %}
+<main class="container">
+{% set flash_msg = pop_flash(request) %}
+{% if flash_msg %}<div class="alert alert-info">{{ flash_msg }}</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+<footer class="footer">
+  <a href="/about">{{ t("nav.about") }}</a>
+  <span>{{ t("footer.version", version=APP_VERSION) }}</span>
+  <span>
+  {% for code, name in languages.items() %}{% if code != lang %}<a href="/lang/{{ code }}">{{ name }}</a> {% endif %}{% endfor %}
+  </span>
+</footer>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/sw.js").catch(function () {});
+  });
+}
+// dropdown menus work with hover and with tap (touch devices)
+document.querySelectorAll(".nav-dropdown").forEach(function (dropdown) {
+  var trigger = dropdown.querySelector(":scope > a, :scope > span");
+  if (!trigger) return;
+  trigger.addEventListener("click", function (e) {
+    var isOpen = dropdown.classList.contains("open");
+    if (trigger.tagName === "A" && !isOpen) e.preventDefault();
+    document.querySelectorAll(".nav-dropdown.open").forEach(function (d) { if (d !== dropdown) d.classList.remove("open"); });
+    dropdown.classList.toggle("open");
+  });
+});
+document.addEventListener("click", function (e) {
+  document.querySelectorAll(".nav-dropdown.open").forEach(function (d) { if (!d.contains(e.target)) d.classList.remove("open"); });
+});
+document.querySelectorAll(".clickable-rows tr[data-href]").forEach(function (row) {
+  row.addEventListener("click", function (e) { if (!e.target.closest("a,button,form,input")) window.location = row.dataset.href; });
+});
+document.querySelectorAll("form[data-confirm]").forEach(function (f) {
+  f.addEventListener("submit", function (e) { if (!confirm(f.dataset.confirm)) e.preventDefault(); });
+});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
