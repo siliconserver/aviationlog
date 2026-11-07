@@ -111,12 +111,18 @@ With HTTPS set `SESSION_HTTPS_ONLY=true` and `BASE_URL=https://aviationlog.examp
 
 | Source | Content | License |
 | --- | --- | --- |
-| [OpenSky Network](https://opensky-network.org/data/aircraft) | aircraft: registration, Mode S, type, MSN, operator, partly build year and engines | free for non-commercial use |
+| [OpenSky Network](https://opensky-network.org/data/aircraft) | aircraft: registration, Mode S, type, MSN, operator, partly build year and engines | unlicensed, provided "as is" (see below) |
 | [OurAirports](https://ourairports.com/data/) | airports with IATA/ICAO codes and coordinates | Public Domain |
 | [OpenFlights](https://openflights.org/data) | airlines and aircraft type codes (IATA/ICAO) | ODbL |
-| ICAO Doc 8643 via OpenSky | aircraft type designators, manufacturer, engines | free for non-commercial use |
+| ICAO Doc 8643 via OpenSky | aircraft type designators, manufacturer, engines | unlicensed, provided "as is" (see below) |
 
 Delivery date, production site and status (active/inactive) are not available from free sources in good quality. Enter them by hand once per aircraft; they are kept across imports. If the container has no internet access, download the files elsewhere and upload them on the same page. The download URLs can be changed with `OPENSKY_URL`, `OURAIRPORTS_URL`, `OPENFLIGHTS_AIRLINES_URL`, `OPENFLIGHTS_PLANES_URL` and `DOC8643_URL`.
+
+The OpenSky aircraft database is unlicensed and does not fall under OpenSky's terms of use; it comes without support or guarantees of any kind. If you use OpenSky Network data in a publication (including web pages, research papers or public presentations), OpenSky asks you to cite:
+
+> Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic, and Matthias Wilhelm. "Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research". In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.
+
+The app shows this notice in *Admin → Master data* and on the About page. Official website: [The OpenSky Network](https://opensky-network.org/).
 
 AviationLog does not scrape any website. Please respect the licenses of the sources.
 

@@ -36,6 +36,14 @@ def test_map_tiles_get_referer(client, db):
     assert 'referrerPolicy: "strict-origin-when-cross-origin"' in r.text
 
 
+def test_opensky_notice(client, db):
+    for url in ["/about", "/admin/data"]:
+        r = client.get(url)
+        assert r.status_code == 200
+        assert "Bringing Up OpenSky" in r.text and 'class="info-tip-btn"' in r.text
+        assert "free for non-commercial use" not in r.text
+
+
 def test_upload_sighting_with_photo(client, db, tmp_path, monkeypatch):
     import_all(db)
     monkeypatch.setenv("PHOTO_MODE", "upload")

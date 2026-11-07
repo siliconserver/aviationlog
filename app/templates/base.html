@@ -92,6 +92,31 @@ document.addEventListener("click", function (e) {
 document.querySelectorAll(".clickable-rows tr[data-href]").forEach(function (row) {
   row.addEventListener("click", function (e) { if (!e.target.closest("a,button,form,input")) window.location = row.dataset.href; });
 });
+// info boxes: hover and keyboard focus via CSS, tap via the i button, Escape closes
+document.querySelectorAll(".info-tip-btn").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var tip = btn.parentElement, open = !tip.classList.contains("open");
+    document.querySelectorAll(".info-tip.open").forEach(function (o) { o.classList.remove("open"); o.querySelector(".info-tip-btn").setAttribute("aria-expanded", "false"); });
+    tip.classList.toggle("open", open);
+    tip.classList.remove("closed");
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+});
+document.querySelectorAll(".info-tip").forEach(function (tip) {
+  tip.addEventListener("mouseleave", function () { tip.classList.remove("closed"); });
+  tip.addEventListener("focusout", function (e) { if (!tip.contains(e.relatedTarget)) tip.classList.remove("closed"); });
+});
+document.addEventListener("click", function (e) {
+  document.querySelectorAll(".info-tip.open").forEach(function (o) { if (!o.contains(e.target)) { o.classList.remove("open"); o.querySelector(".info-tip-btn").setAttribute("aria-expanded", "false"); } });
+});
+document.addEventListener("keydown", function (e) {
+  if (e.key !== "Escape") return;
+  document.querySelectorAll(".info-tip").forEach(function (o) {
+    if (o.classList.contains("open") || o.matches(":hover, :focus-within")) o.classList.add("closed");
+    o.classList.remove("open");
+    o.querySelector(".info-tip-btn").setAttribute("aria-expanded", "false");
+  });
+});
 document.querySelectorAll("form[data-confirm]").forEach(function (f) {
   f.addEventListener("submit", function (e) { if (!confirm(f.dataset.confirm)) e.preventDefault(); });
 });
