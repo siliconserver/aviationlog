@@ -3,6 +3,9 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.2.1 (2026-11-07)
+- Fix: the photo scan failed completely ("surrogates not allowed") when a folder or file name on the NAS was not valid UTF-8, e.g. umlauts saved by an old program. Such names are now skipped and listed after the scan so you can rename them
+
 ## 0.2 (2026-11-07)
 - "Registration unknown": aircraft whose registration you don't know can be added anyway, in the photo scan review (one checkbox per folder) and in "+ Sighting". They get a placeholder (?-1, ?-2 …), are not counted in fleet completion, and get their real registration later on the aircraft's edit page; if that registration already exists, the sightings and photos move there
 - Photo scan: German military serials such as "15+11" are recognised as registrations

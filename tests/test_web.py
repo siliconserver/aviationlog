@@ -226,6 +226,38 @@ def test_registration_unknown(client, db, tmp_path, monkeypatch):
     assert db.get(models.Aircraft, renamed_id).registration == "D-AIXA"
 
 
+def test_nas_scan_skips_invalid_utf8_names(client, db, tmp_path, monkeypatch):
+    import os
+
+    import jobs
+    import_all(db)
+    root = tmp_path / "nas"
+    monkeypatch.setenv("PHOTO_MODE", "nas")
+    monkeypatch.setenv("PHOTO_DIR", str(root))
+    # "Mavi Gök Airlines" written as Latin-1 by an old client: not valid UTF-8
+    bad = os.path.join(str(root).encode(), b"Mavi G\xf6k Airlines/B738/TC-MGN MGA B738/2026-05-19-MUC")
+    os.makedirs(bad)
+    fixtures_photos.jpeg_with_exif(os.fsdecode(os.path.join(bad, b"a.jpg")), gps=None)
+    good = root / "Lufthansa/A20N/D-AIJC Lufthansa A20N/2026-06-05-FRA"
+    good.mkdir(parents=True)
+    fixtures_photos.jpeg_with_exif(str(good / "b.jpg"), gps=None)
+    client.post("/admin/photos/scan")
+    jobs.wait_idle()
+    db.expire_all()
+    job = db.query(models.Job).filter_by(kind="scan").order_by(models.Job.id.desc()).first()
+    assert job.status == "done"
+    assert job.result["unreadable"] == 1 and job.result["unreadable_paths"] == ["Mavi G\ufffdk Airlines"]
+    assert [e.folder for e in db.query(models.ScanEntry)] == ["Lufthansa/A20N/D-AIJC Lufthansa A20N/2026-06-05-FRA"]
+    assert "Mavi G\ufffdk Airlines" in client.get("/admin/photos").text
+
+    # renamed on the NAS: found on the next scan
+    os.rename(os.path.join(str(root).encode(), b"Mavi G\xf6k Airlines"), str(root / "Mavi Gök Airlines").encode())
+    client.post("/admin/photos/scan")
+    jobs.wait_idle()
+    db.expire_all()
+    assert "Mavi Gök Airlines/B738/TC-MGN MGA B738/2026-05-19-MUC" in [e.folder for e in db.query(models.ScanEntry)]
+
+
 def test_two_factor_login(client, db):
     import pyotp
 

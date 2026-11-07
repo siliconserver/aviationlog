@@ -18,7 +18,12 @@
     {% if job.message and job.status == 'failed' %}<span class="nok">{{ job.message }}</span>{% elif job.message %}{{ t("job.step." ~ job.message.split(':')[0]) }}{% endif %}
   </div>
   {% if job.status == 'done' and job.result %}
-  <div class="muted">{% for k, v in job.result.items() %}{{ t("job.result." ~ k) }}: {{ v | n(lang) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+  {% set numbers = job.result.items() | rejectattr("0", "equalto", "unreadable_paths") | list %}
+  <div class="muted">{% for k, v in numbers %}{{ t("job.result." ~ k) }}: {{ v | n(lang) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+  {% if job.result.unreadable_paths %}
+  <div class="problem" style="margin-top:0.6rem">{{ t("photos.unreadable_hint") }}</div>
+  <ul class="muted" style="word-break: break-all">{% for p in job.result.unreadable_paths %}<li>{{ p }}</li>{% endfor %}</ul>
+  {% endif %}
   {% endif %}
 </div>
 <script>
