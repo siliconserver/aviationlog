@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}{{ t("nav.dashboard") }}{% endblock %}
+{% block content %}
+<h1>{{ t("nav.dashboard") }}</h1>
+
+{% if not has_master_data and user.role.value == "admin" %}
+<div class="alert alert-info">{{ t("dashboard.no_master_data") }} <a href="/admin/data">{{ t("nav.master_data") }} →</a></div>
+{% endif %}
+
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-value">{{ totals.aircraft | n(lang) }}</div><div class="stat-label">{{ t("stats.aircraft") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ totals.sightings | n(lang) }}</div><div class="stat-label">{{ t("stats.sightings") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ totals.photos | n(lang) }}</div><div class="stat-label">{{ t("stats.photos") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ totals.airlines | n(lang) }}</div><div class="stat-label">{{ t("stats.airlines") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ totals.types | n(lang) }}</div><div class="stat-label">{{ t("stats.types") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ totals.airports | n(lang) }}</div><div class="stat-label">{{ t("stats.airports") }}</div></div>
+</div>
+
+<div class="chart-grid">
+  <div class="chart-card wide">
+    <h2>{{ t("stats.new_per_month") }}</h2>
+    {% if months %}<div class="chart-wrap"><canvas id="chart-months"></canvas></div>{% else %}<div class="chart-empty">{{ t("common.no_data") }}</div>{% endif %}
+  </div>
+  <div class="chart-card">
+    <h2>{{ t("stats.by_airline") }}</h2>
+    {% if airlines %}<div class="chart-wrap"><canvas id="chart-airlines"></canvas></div>{% else %}<div class="chart-empty">{{ t("common.no_data") }}</div>{% endif %}
+  </div>
+  <div class="chart-card">
+    <h2>{{ t("stats.by_type") }}</h2>
+    {% if types %}<div class="chart-wrap"><canvas id="chart-types"></canvas></div>{% else %}<div class="chart-empty">{{ t("common.no_data") }}</div>{% endif %}
+  </div>
+  <div class="chart-card">
+    <h2>{{ t("stats.by_airport") }}</h2>
+    {% if airports %}<div class="chart-wrap"><canvas id="chart-airports"></canvas></div>{% else %}<div class="chart-empty">{{ t("common.no_data") }}</div>{% endif %}
+  </div>
+  <div class="chart-card">
+    <h2>{{ t("stats.by_year") }}</h2>
+    {% if years %}<div class="chart-wrap"><canvas id="chart-years"></canvas></div>{% else %}<div class="chart-empty">{{ t("common.no_data") }}</div>{% endif %}
+  </div>
+</div>
+
+<div class="panel-grid">
+  <section class="panel">
+    <h2>{{ t("stats.fleet_completion") }} <a class="count" href="/airlines">{{ t("common.all") }} →</a></h2>
+    {% if fleets %}
+    <table class="mini-table">
+      {% for f in fleets %}
+      <tr>
+        <td><a href="/airlines/{{ f.id }}">{{ f.name }}</a></td>
+        <td style="width:40%"><div class="pct-bar"><div style="width: {{ (100 * f.x / f.y) | round if f.y else 0 }}%"></div></div></td>
+        <td>{{ f.x }} / {{ f.y }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<div class="chart-empty">{{ t("common.no_data") }}</div>{% endif %}
+  </section>
+  <section class="panel">
+    <h2>{{ t("stats.recent") }}</h2>
+    {% if recent %}
+    <table class="mini-table">
+      {% for s in recent %}
+      <tr>
+        <td><a href="/aircraft/{{ s.aircraft_id }}#s{{ s.id }}">{{ s.aircraft.registration }}</a> <span class="muted">{{ s.aircraft.type_icao or "" }}</span></td>
+        <td>{{ s.date | d(lang) }} {{ s.airport.code if s.airport else "" }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}<div class="chart-empty">{{ t("common.no_data") }}</div>{% endif %}
+  </section>
+  <section class="panel">
+    <h2>{{ t("stats.cameras") }}</h2>
+    {% if cameras %}
+    <table class="mini-table">
+      {% for c in cameras %}<tr><td><a href="/aircraft?field=camera&q={{ c.camera_model | urlencode }}">{{ c.camera_make or "" }} {{ c.camera_model }}</a></td><td>{{ c.n | n(lang) }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="chart-empty">{{ t("common.no_data") }}</div>{% endif %}
+    <h3>{{ t("stats.lenses") }}</h3>
+    {% if lenses %}
+    <table class="mini-table">
+      {% for l in lenses %}<tr><td><a href="/aircraft?field=lens&q={{ l.lens | urlencode }}">{{ l.lens }}</a></td><td>{{ l.n | n(lang) }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<div class="chart-empty">{{ t("common.no_data") }}</div>{% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/vendor/chart.umd.min.js"></script>
+<script>
+(function () {
+  var css = getComputedStyle(document.documentElement);
+  var text = css.getPropertyValue("--text-muted").trim(), grid = css.getPropertyValue("--border").trim();
+  var accent = css.getPropertyValue("--accent").trim(), good = css.getPropertyValue("--good").trim();
+  Chart.defaults.color = text; Chart.defaults.borderColor = grid; Chart.defaults.maintainAspectRatio = false;
+  function bar(id, labels, data, opts) {
+    var el = document.getElementById(id); if (!el) return;
+    new Chart(el, Object.assign({type: "bar", data: {labels: labels, datasets: [{data: data, backgroundColor: accent}]},
+      options: {plugins: {legend: {display: false}}, scales: {x: {ticks: {precision: 0}}, y: {ticks: {precision: 0}}}}}, opts || {}));
+  }
+  var hbar = {options: {indexAxis: "y", plugins: {legend: {display: false}}, scales: {x: {ticks: {precision: 0}}}}};
+  bar("chart-months", {{ months | map(attribute=0) | list | tojson }}, {{ months | map(attribute=1) | list | tojson }});
+  bar("chart-airlines", {{ airlines | map(attribute="label") | list | tojson }}, {{ airlines | map(attribute="n") | list | tojson }}, hbar);
+  bar("chart-types", {{ types | map(attribute="label") | list | tojson }}, {{ types | map(attribute="n") | list | tojson }}, hbar);
+  bar("chart-airports", {{ airports | map(attribute="iata") | map("default", "?") | list | tojson }}, {{ airports | map(attribute="n") | list | tojson }}, hbar);
+  var years = {{ years | tojson }};
+  var el = document.getElementById("chart-years");
+  if (el) new Chart(el, {type: "bar", data: {labels: years.map(function (y) { return y.year; }), datasets: [
+    {label: {{ t("stats.sightings") | tojson }}, data: years.map(function (y) { return y.sightings; }), backgroundColor: accent},
+    {label: {{ t("stats.new_aircraft") | tojson }}, data: years.map(function (y) { return y.new; }), backgroundColor: good}]},
+    options: {scales: {y: {ticks: {precision: 0}}}}});
+})();
+</script>
+{% endblock %}

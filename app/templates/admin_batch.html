@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ t("data.review") }}{% endblock %}
+{% block content %}
+<h1>{{ t("data.review") }} <span class="count">{{ batch.source }}</span> <span class="badge badge-muted">{{ t("data.status." ~ batch.status) }}</span></h1>
+{{ m.admin_nav("data") }}
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-value">{{ batch.stats.get("new", 0) | n(lang) }}</div><div class="stat-label">{{ t("data.new") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ batch.stats.get("changed", 0) | n(lang) }}</div><div class="stat-label">{{ t("data.changed") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ batch.stats.get("changed_in_collection", 0) | n(lang) }}</div><div class="stat-label">{{ t("data.changed_in_collection") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ rejected | n(lang) }}</div><div class="stat-label">{{ t("data.rejected") }}</div></div>
+</div>
+<p class="muted">{{ t("data.review_hint") }}</p>
+
+{% if batch.status == "ready" %}
+<div class="actions" style="margin-bottom:1rem">
+  <form method="post" action="/admin/data/batch/{{ batch.id }}/apply" class="inline-form"><button class="btn" {{ "disabled" if job }}>{{ t("data.apply") }}</button></form>
+  <form method="post" action="/admin/data/batch/{{ batch.id }}/discard" class="inline-form" data-confirm="{{ t('data.discard_confirm') }}"><button class="btn-secondary">{{ t("data.discard") }}</button></form>
+</div>
+{% endif %}
+
+<div class="tabs">
+  {% for tb in ["collection", "changed", "new", "rejected", "all"] %}<a href="?tab={{ tb }}" class="{{ 'active' if tab == tb }}">{{ t("data.tab_" ~ tb) }}</a>{% endfor %}
+</div>
+<form method="get" class="search-bar">
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <label>{{ t("search.term") }}<input type="text" name="q" value="{{ q }}"></label>
+  <div class="actions"><button class="btn-secondary">{{ t("search.submit") }}</button></div>
+</form>
+{% if batch.status == "ready" and tab != "rejected" %}
+<div class="backup-actions" style="margin-bottom:0.8rem">
+  <form method="post" action="/admin/data/batch/{{ batch.id }}/bulk" class="inline-form"><input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="action" value="accept"><button class="btn-secondary btn-sm">{{ t("data.accept_all") }}</button></form>
+  <form method="post" action="/admin/data/batch/{{ batch.id }}/bulk" class="inline-form"><input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="action" value="reject"><button class="btn-secondary btn-sm">{{ t("data.reject_all") }}</button></form>
+</div>
+{% endif %}
+
+<p class="muted">{{ t("common.results", count=total) }}</p>
+{% for row in rows %}
+<form method="post" action="/admin/data/batch/{{ batch.id }}/row/{{ row.id }}" class="sighting">
+  <input type="hidden" name="back" value="/admin/data/batch/{{ batch.id }}?tab={{ tab }}&q={{ q | urlencode }}&page={{ page }}">
+  <div class="sighting-head">
+    <h3>{{ row.key }} <span class="badge badge-muted">{{ t("data." ~ row.kind) }}</span>{% if row.in_collection %} <span class="badge badge-muted ok">{{ t("data.in_collection") }}</span>{% endif %}</h3>
+    <label class="checkbox" style="margin:0"><input type="checkbox" name="accepted" {{ "checked" if row.accepted }}> {{ t("data.accept") }}</label>
+  </div>
+  <div class="form-grid" style="background:none;border:none;padding:0.6rem 0 0">
+    {% for f in fields if f in row.data or (row.old and f in row.old) %}
+    {% if row.kind == "new" or (row.old and f in row.old) %}
+    <label>{{ t("field." ~ f) }}
+      {% if row.old and f in row.old %}<span class="old">{{ row.old[f] if row.old[f] is not none else "–" }}</span>{% endif %}
+      {% set v = row.edited[f] if row.edited and f in row.edited else row.data.get(f) %}
+      <input type="text" name="f_{{ f }}" value="{{ '' if v is none else v }}">
+    </label>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% if batch.status == "ready" %}<button class="btn-secondary btn-sm">{{ t("common.save") }}</button>{% endif %}
+</form>
+{% else %}
+<p class="muted">{{ t("common.no_data") }}</p>
+{% endfor %}
+{{ m.pager(page, pages, "?tab=" ~ tab ~ "&q=" ~ (q | urlencode)) }}
+{% endblock %}

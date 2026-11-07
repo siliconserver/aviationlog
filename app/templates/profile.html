@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ t("nav.profile") }}{% endblock %}
+{% block content %}
+<h1>{{ t("nav.profile") }} <span class="count">{{ user.username }}</span></h1>
+
+<section class="panel">
+  <h2>{{ t("profile.settings") }}</h2>
+  <form method="post" action="/profile/settings" class="form-grid" style="background:none;border:none;padding:0">
+    <label>{{ t("profile.language") }}
+      <select name="language">
+        {% for code, name in languages.items() %}<option value="{{ code }}" {{ "selected" if code == lang }}>{{ name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>{{ t("profile.theme") }}
+      <select name="theme">
+        {% for th in THEMES %}<option value="{{ th }}" {{ "selected" if user.theme == th }}>{{ t("theme." ~ th) }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>{{ t("common.email") }}
+      <input type="email" name="email" value="{{ user.email or '' }}">
+    </label>
+    <div class="full actions"><button class="btn">{{ t("common.save") }}</button></div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>{{ t("profile.change_password") }}</h2>
+  <form method="post" action="/profile/password" class="form-grid" style="background:none;border:none;padding:0">
+    <label>{{ t("profile.current_password") }}<input type="password" name="current_password" autocomplete="current-password" required></label>
+    <label>{{ t("profile.new_password") }}<input type="password" name="new_password" minlength="8" autocomplete="new-password" required></label>
+    <label>{{ t("profile.new_password_confirm") }}<input type="password" name="new_password_confirm" minlength="8" autocomplete="new-password" required></label>
+    <div class="full actions"><button class="btn">{{ t("common.save") }}</button></div>
+  </form>
+</section>
+
+<section class="panel" id="security">
+  <h2>{{ t("profile.2fa") }}
+    {% if user.totp_enabled %}<span class="ok">{{ t("profile.2fa_on") }}</span>{% else %}<span class="muted">{{ t("profile.2fa_off") }}</span>{% endif %}
+  </h2>
+  {% if recovery_codes %}
+  <div class="alert alert-info">
+    <strong>{{ t("profile.recovery_codes_title") }}</strong><br>{{ t("profile.recovery_codes_text") }}
+    <ul class="codes">{% for c in recovery_codes %}<li>{{ c }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+  {% if user.totp_enabled %}
+  <p class="muted">{{ t("profile.recovery_left", count=user.recovery_codes|length) }}</p>
+  <form method="post" action="/profile/2fa/recovery" class="actions">
+    <input type="password" name="password" placeholder="{{ t('login.password') }}" required>
+    <button class="btn-secondary">{{ t("profile.recovery_new") }}</button>
+  </form>
+  <form method="post" action="/profile/2fa/disable" class="actions">
+    <input type="password" name="password" placeholder="{{ t('login.password') }}" required>
+    <button class="btn-danger btn">{{ t("profile.2fa_disable") }}</button>
+  </form>
+  {% else %}
+  <p class="muted">{{ t("profile.2fa_text") }}</p>
+  <a class="btn" href="/profile/2fa/setup">{{ t("profile.2fa_enable") }}</a>
+  {% endif %}
+</section>
+{% endblock %}

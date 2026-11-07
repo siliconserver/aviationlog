@@ -1,0 +1,51 @@
+{% macro pager(page, pages, url) -%}
+{% if pages > 1 %}
+<div class="pager">
+  {% if page > 1 %}<a href="{{ url }}&page={{ page - 1 }}">← {{ t("common.prev") }}</a>{% endif %}
+  <span>{{ t("common.page_of", page=page, pages=pages) }}</span>
+  {% if page < pages %}<a href="{{ url }}&page={{ page + 1 }}">{{ t("common.next") }} →</a>{% endif %}
+</div>
+{% endif %}
+{%- endmacro %}
+
+{% macro job_status(job) -%}
+{% if job %}
+<div class="panel" id="job-panel" data-job="{{ job.id }}" data-running="{{ 1 if job.status in ('queued', 'running') else 0 }}">
+  <h2>{{ t("job.kind." ~ job.kind) }} <span class="count" id="job-status">{{ t("job.status." ~ job.status) }}</span></h2>
+  <div class="progress"><div id="job-bar" style="width: {{ (100 * job.progress / job.total) | round if job.total else (100 if job.status == 'done' else 5) }}%"></div></div>
+  <div class="muted" id="job-text">
+    {% if job.total %}{{ job.progress | n(lang) }} / {{ job.total | n(lang) }}{% endif %}
+    {% if job.message and job.status == 'failed' %}<span class="nok">{{ job.message }}</span>{% elif job.message %}{{ t("job.step." ~ job.message.split(':')[0]) }}{% endif %}
+  </div>
+  {% if job.status == 'done' and job.result %}
+  <div class="muted">{% for k, v in job.result.items() %}{{ t("job.result." ~ k) }}: {{ v | n(lang) }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+  {% endif %}
+</div>
+<script>
+(function () {
+  var panel = document.getElementById("job-panel");
+  if (!panel || panel.dataset.running !== "1") return;
+  var id = panel.dataset.job;
+  function poll() {
+    fetch("/api/jobs/" + id).then(function (r) { return r.json(); }).then(function (j) {
+      var pct = j.total ? Math.round(100 * j.progress / j.total) : 5;
+      document.getElementById("job-bar").style.width = pct + "%";
+      document.getElementById("job-text").textContent = j.total ? (j.progress + " / " + j.total) : "";
+      if (j.status === "done" || j.status === "failed") { window.location.reload(); }
+      else { setTimeout(poll, 2000); }
+    }).catch(function () { setTimeout(poll, 5000); });
+  }
+  setTimeout(poll, 1500);
+})();
+</script>
+{% endif %}
+{%- endmacro %}
+
+{% macro admin_nav(active) -%}
+<div class="settings-nav">
+  <a href="/admin/data"{% if active == 'data' %} style="color: var(--accent)"{% endif %}>{{ t("nav.master_data") }}</a>
+  <a href="/admin/photos"{% if active == 'photos' %} style="color: var(--accent)"{% endif %}>{{ t("nav.photos") }}</a>
+  <a href="/admin/users"{% if active == 'users' %} style="color: var(--accent)"{% endif %}>{{ t("nav.users") }}</a>
+  <a href="/admin/backups"{% if active == 'backups' %} style="color: var(--accent)"{% endif %}>{{ t("nav.backups") }}</a>
+</div>
+{%- endmacro %}

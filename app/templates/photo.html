@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ ac.registration }} · {{ photo.filename }}{% endblock %}
+{% block content %}
+<h1><a href="/aircraft/{{ ac.id }}#s{{ s.id }}">{{ ac.registration }}</a> <span class="muted">{{ s.date | d(lang) }} {{ s.airport.code if s.airport else "" }}</span></h1>
+<div class="photo-nav">
+  <span>{% if prev_id %}<a href="/photos/{{ prev_id }}">← {{ t("common.prev") }}</a>{% endif %}</span>
+  <span class="muted">{{ photo.filename }}</span>
+  <span>{% if next_id %}<a href="/photos/{{ next_id }}">{{ t("common.next") }} →</a>{% endif %}</span>
+</div>
+<div class="photo-view">
+  <a href="/photos/{{ photo.id }}/original" target="_blank"><img src="/photos/{{ photo.id }}/thumb/m" alt="{{ photo.filename }}"></a>
+</div>
+<div class="panel-grid" style="margin-top:1rem">
+  <section class="panel">
+    <h2>{{ t("photo.exif") }}</h2>
+    <table class="mini-table exif">
+      <tr><td>{{ t("field.camera") }}</td><td>{{ photo.camera or "–" }}</td></tr>
+      <tr><td>{{ t("field.lens") }}</td><td>{{ photo.lens or "–" }}</td></tr>
+      <tr><td>{{ t("photo.focal_length") }}</td><td>{{ (photo.focal_length | round | int ~ " mm") if photo.focal_length else "–" }}</td></tr>
+      <tr><td>{{ t("photo.aperture") }}</td><td>{{ ("f/" ~ photo.aperture) if photo.aperture else "–" }}</td></tr>
+      <tr><td>{{ t("photo.exposure") }}</td><td>{{ (photo.exposure ~ " s") if photo.exposure else "–" }}</td></tr>
+      <tr><td>ISO</td><td>{{ photo.iso or "–" }}</td></tr>
+      <tr><td>{{ t("photo.taken_at") }}</td><td>{{ photo.taken_at | d(lang) or "–" }}</td></tr>
+      {% if photo.width %}<tr><td>{{ t("photo.size") }}</td><td>{{ photo.width }} × {{ photo.height }}</td></tr>{% endif %}
+      {% if photo.gps_lat is not none %}<tr><td>GPS</td><td><a href="https://www.openstreetmap.org/?mlat={{ photo.gps_lat }}&mlon={{ photo.gps_lon }}#map=15/{{ photo.gps_lat }}/{{ photo.gps_lon }}" target="_blank" rel="noopener">{{ "%.5f"|format(photo.gps_lat) }}, {{ "%.5f"|format(photo.gps_lon) }}</a></td></tr>{% endif %}
+    </table>
+  </section>
+  <section class="panel">
+    <h2>{{ t("photo.file") }}</h2>
+    <p class="muted" style="word-break: break-all">{{ photo.path }}</p>
+    {% if not exists %}<p class="nok">{{ t("photo.missing") }}</p>{% endif %}
+    <div class="actions">
+      <a class="btn-secondary" href="/photos/{{ photo.id }}/original">{{ t("photo.original") }}</a>
+      {% set raw = photo.raw_companion %}
+      {% if raw %}<a class="btn-secondary" href="/photos/{{ raw.id }}/original">{{ t("photo.raw") }}</a>{% endif %}
+      {% if user.role.value == "admin" %}
+      {% if ac.cover_photo_id != photo.id %}<form method="post" action="/photos/{{ photo.id }}/cover" class="inline-form"><button class="btn-secondary">★ {{ t("photo.set_cover") }}</button></form>{% endif %}
+      <form method="post" action="/photos/{{ photo.id }}/delete" class="inline-form" data-confirm="{{ t('photo.delete_confirm_' ~ photo_mode) }}"><button class="btn btn-danger">{{ t("common.delete") }}</button></form>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,68 @@
+# Creates a tag and GitHub release for the top version in CHANGELOG.md as soon as it
+# lands on main, and builds the versioned Docker image (docker.yml).
+# If the tag already exists, nothing happens.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.create.outputs.created }}
+      version: ${{ steps.changelog.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version and notes from CHANGELOG.md
+        id: changelog
+        run: |
+          version=$(awk '/^## /{print $2; exit}' CHANGELOG.md)
+          if ! [[ "$version" =~ ^[0-9]+(\.[0-9]+)*$ ]]; then
+            echo "No valid version found at the top of CHANGELOG.md: '$version'" >&2
+            exit 1
+          fi
+          awk '/^## /{if (found) exit; found=1; next} found' CHANGELOG.md > release-notes.md
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Create release if it does not exist yet
+        id: create
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.changelog.outputs.tag }}
+          VERSION: ${{ steps.changelog.outputs.version }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, nothing to do."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "AviationLog $VERSION" \
+            --notes-file release-notes.md \
+            --latest
+          echo "created=true" >> "$GITHUB_OUTPUT"
+
+  # A release created with GITHUB_TOKEN does not start other workflows, so the
+  # release image is built here directly. When started manually ("Run workflow")
+  # the image is also built for an already existing release.
+  image:
+    needs: release
+    if: needs.release.outputs.created == 'true' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/docker.yml
+    with:
+      version: ${{ needs.release.outputs.version }}

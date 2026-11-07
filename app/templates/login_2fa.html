@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ t("login.2fa_title") }}{% endblock %}
+{% block content %}
+<div class="login-box">
+  <img src="/static/logo.png" alt="AviationLog" class="login-logo">
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/login/2fa">
+    <label>{{ t("login.2fa_code") }}
+      <input type="text" name="code" autocomplete="one-time-code" required autofocus>
+    </label>
+    <p class="hint">{{ t("login.2fa_recovery_hint") }}</p>
+    <button type="submit" class="btn">{{ t("login.confirm") }}</button>
+  </form>
+</div>
+{% endblock %}

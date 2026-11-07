@@ -1,0 +1,5 @@
+"id","ident","type","name","latitude_deg","longitude_deg","elevation_ft","continent","iso_country","iso_region","municipality","scheduled_service","icao_code","iata_code","gps_code","local_code","home_link","wikipedia_link","keywords"
+2212,"EDDF","large_airport","Frankfurt am Main Airport",50.036249,8.559294,364,"EU","DE","DE-HE","Frankfurt am Main","yes","EDDF","FRA","EDDF","","","",""
+2218,"EDDM","large_airport","Munich Airport",48.353802,11.7861,1487,"EU","DE","DE-BY","Munich","yes","EDDM","MUC","EDDM","","","",""
+2214,"EDDK","large_airport","Cologne Bonn Airport",50.865898,7.14274,302,"EU","DE","DE-NW","Köln (Cologne)","yes","EDDK","CGN","EDDK","","","",""
+9999,"DE-0001","closed","Old field",50.0,8.0,0,"EU","DE","DE-HE","X","no","","","","","","",""

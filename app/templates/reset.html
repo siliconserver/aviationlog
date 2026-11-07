@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ t("reset.title") }}{% endblock %}
+{% block content %}
+<div class="login-box">
+  <h1>{{ t("reset.new_password") }}</h1>
+  {% if not valid %}
+  <div class="alert alert-error">{{ t("reset.invalid") }}</div>
+  <p class="muted"><a href="/forgot">{{ t("reset.again") }}</a></p>
+  {% else %}
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/reset/{{ token }}">
+    <label>{{ t("profile.new_password") }}
+      <input type="password" name="password" minlength="8" autocomplete="new-password" required>
+    </label>
+    <label>{{ t("profile.new_password_confirm") }}
+      <input type="password" name="password_confirm" minlength="8" autocomplete="new-password" required>
+    </label>
+    <button type="submit" class="btn">{{ t("common.save") }}</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

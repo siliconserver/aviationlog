@@ -1,2 +1,139 @@
-# aviationlog
-Web based tool to track your spotted planes.
+# AviationLog
+
+Self-hosted web app for plane spotters: log the aircraft you photographed, find them again by any detail, see how much of each airline's fleet you already have, and keep your spotting locations on a map.
+
+You only enter **registration, date and airport**. Type, airline, MSN, build year, engines and more come from the built-in master data, imported from free public sources.
+
+## Features
+
+- **Aircraft and sightings**: one entry per registration with any number of sightings (date, airport, spotting location, livery, photos). "Seen" is the number of sightings. Re-registered airframes are linked through the MSN.
+- **Search** across all details (registration, MSN, type, airline, livery, christening name, airport, spotting location, camera, lens), optionally limited to one field.
+- **Master data import** from OpenSky (aircraft), OurAirports (airports) and OpenFlights (airlines, type codes). Every import is shown for review first: new and changed records, with the option to correct or reject them. Values you edited by hand are never overwritten.
+- **Fleet completion**: per airline, spotted active aircraft out of the whole active fleet ("X of Y"). Retired aircraft can be marked inactive so they no longer count.
+- **Photos** in two modes (see below), previews for JPG, PNG, HEIF/HIF and Sony ARW, camera data (EXIF: camera, lens, focal length, aperture, exposure, ISO, GPS) per photo, a cover photo per aircraft.
+- **Map** (OpenStreetMap) with named spotting locations per airport, set by clicking on the map. Photos with GPS data are assigned to the nearest spotting location automatically.
+- **Dashboard** with statistics per airline, type, airport, year, month, camera and lens. **CSV export** of the whole collection.
+- **Users** with the roles admin (may change everything) and viewer (read only), two-factor login with an authenticator app plus recovery codes, password reset by e-mail (optional SMTP).
+- Daily **database backups** with download and restore in the web UI.
+- Installable as an **app on the phone** (PWA), light and dark mode, **English and German** (more languages welcome, see below).
+
+## Quick start
+
+```bash
+mkdir aviationlog && cd aviationlog
+curl -O https://raw.githubusercontent.com/siliconserver/aviationlog/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/siliconserver/aviationlog/main/.env.example
+# edit .env: passwords, SECRET_KEY, photo mode
+docker compose up -d
+```
+
+Open `http://<server>:8090` and log in with `ADMIN_USERNAME` / `ADMIN_PASSWORD` from `.env`. Then:
+
+1. **Admin → Master data**: download and apply airports, airlines, aircraft types and the aircraft database (the OpenSky file is large; the first import takes a few minutes).
+2. **Profile**: turn on two-factor authentication.
+3. Start logging: **+ Sighting**, or scan your photo archive (NAS mode).
+
+Everything the app stores lives in `./data` next to `docker-compose.yml`. To move to another server, copy the whole folder including `.env`.
+
+### Update
+
+```bash
+docker compose pull && docker compose up -d
+```
+
+`AVIATIONLOG_TAG` in `.env` selects the image: `latest` (newest release), `main` (current main branch) or a fixed version such as `0.1`.
+
+## Photo modes
+
+Set `PHOTO_MODE` in `.env`. Photos always come from one direction only, so the file system cannot get mixed up. You can switch later, because both modes use the same folder scheme.
+
+| Mode | Use it for | Behaviour |
+| --- | --- | --- |
+| `upload` | root server | Photos are uploaded with a sighting and stored in `./data/app/photos` in the folder scheme. |
+| `nas` | existing archive on a NAS | The archive is mounted **read only**. *Admin → Photos → Scan* lists new folders; you check and correct the detected values, then apply. Nothing on the NAS is ever written. |
+
+NAS example (`.env`):
+
+```env
+PHOTO_MODE=nas
+PHOTO_HOST_DIR=/volume1/photos/spotting
+PHOTO_MOUNT_OPTS=:ro
+```
+
+### Folder scheme
+
+```
+<Airline>/<Type ICAO>/<REG Airline Type [Christening name] [(Livery)]>/<YYYY-MM-DD-IATA>/<photos>
+```
+
+Examples:
+
+```
+Lufthansa/A20N/D-AIJC Lufthansa A20N Lünen/2026-06-05-FRA/DSC01234.ARW
+Condor/A339/D-ANRA Condor A339 Green/2026-04-17-FRA/DSC01300.JPG
+SunExpress/B738/TC-SOZ SunExpress (Istanbul Livery) B738/2026-06-15-CGN/DSC01400.HIF
+```
+
+- The registration is the first word of the aircraft folder.
+- Text in brackets is the **livery**, any other text (without airline and type) the **christening name**. If that is wrong for a folder, correct it in the scan review; the correction is remembered for that folder.
+- The date folder is `YYYY-MM-DD-` followed by the IATA (or ICAO) airport code.
+- Supported files: JPG, PNG, HEIF/HEIC/HIF, ARW. When a RAW and a JPEG/HEIF with the same name exist, the gallery shows the JPEG and offers the RAW as a download.
+- A sighting created on the phone before the scan (same registration, date and airport) is matched with its folder, no duplicate is created.
+
+## Behind Traefik
+
+The app listens on port 8000 in the container. Example labels for the `app` service (remove the `ports:` section if Traefik reaches the container over a Docker network):
+
+```yaml
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.aviationlog.rule=Host(`aviationlog.example.com`)
+      - traefik.http.routers.aviationlog.entrypoints=websecure
+      - traefik.http.routers.aviationlog.tls.certresolver=letsencrypt
+      - traefik.http.services.aviationlog.loadbalancer.server.port=8000
+```
+
+With HTTPS set `SESSION_HTTPS_ONLY=true` and `BASE_URL=https://aviationlog.example.com` (used in password reset mails). Large photo uploads may need a higher body size limit in your proxy.
+
+## Master data sources
+
+| Source | Content | License |
+| --- | --- | --- |
+| [OpenSky Network](https://opensky-network.org/data/aircraft) | aircraft: registration, Mode S, type, MSN, operator, partly build year and engines | free for non-commercial use |
+| [OurAirports](https://ourairports.com/data/) | airports with IATA/ICAO codes and coordinates | Public Domain |
+| [OpenFlights](https://openflights.org/data) | airlines and aircraft type codes (IATA/ICAO) | ODbL |
+| ICAO Doc 8643 via OpenSky | aircraft type designators, manufacturer, engines | free for non-commercial use |
+
+Delivery date, production site and status (active/inactive) are not available from free sources in good quality. Enter them by hand once per aircraft; they are kept across imports. If the container has no internet access, download the files elsewhere and upload them on the same page. The download URLs can be changed with `OPENSKY_URL`, `OURAIRPORTS_URL`, `OPENFLIGHTS_AIRLINES_URL`, `OPENFLIGHTS_PLANES_URL` and `DOC8643_URL`.
+
+AviationLog does not scrape any website. Please respect the licenses of the sources.
+
+## Backups
+
+The database is backed up every day (time and number of kept backups under *Admin → Backups*) to `./data/app/backups`. **Photos are not part of the backup**, back up your photo folder separately. Thumbnails in `./data/app/thumbs` can always be recreated.
+
+## Configuration
+
+All settings are in `.env`, see [.env.example](.env.example) for the full list with comments.
+
+## Translations
+
+The user interface is translated with one JSON file per language in [`app/i18n`](app/i18n). To add a language, copy `en.json` to `<code>.json` (e.g. `fr.json`), translate the values, set `_language_name` and open a pull request. Missing keys fall back to English; the tests check that every language has all keys.
+
+## Development
+
+```bash
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt pytest
+# a PostgreSQL 16 database is needed, e.g. docker run -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:16-alpine
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres DATA_DIR=$PWD/data PHOTO_DIR=$PWD/data/photos
+cd app && uvicorn main:app --reload
+```
+
+Tests: `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/aviationlog_test pytest tests` (the test database is wiped).
+
+Releases: add a new version at the top of [CHANGELOG.md](CHANGELOG.md). When it lands on `main`, GitHub Actions creates the tag and release and pushes the image `ghcr.io/siliconserver/aviationlog:<version>` and `:latest` (amd64 and arm64).
+
+## License
+
+MIT, see [LICENSE](LICENSE).

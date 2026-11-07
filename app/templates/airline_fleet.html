@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ airline.name }}{% endblock %}
+{% block content %}
+<h1>{{ airline.name }} <span class="muted">{{ airline.iata or "–" }} / {{ airline.icao or "–" }}</span></h1>
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-value">{{ x }} / {{ y }}</div><div class="stat-label">{{ t("fleet.spotted_active") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ (100 * x / y) | round | int if y else 0 }} %</div><div class="stat-label">{{ t("fleet.completion") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ y - x }}</div><div class="stat-label">{{ t("fleet.missing") }}</div></div>
+  <div class="stat-card"><div class="stat-value">{{ inactive }}</div><div class="stat-label">{{ t("fleet.inactive") }}</div></div>
+</div>
+<p class="muted">{{ t("fleet.inactive_hint") }}</p>
+<div class="tabs">
+  {% for s in ["all", "missing", "spotted", "inactive"] %}<a href="?show={{ s }}" class="{{ 'active' if show == s }}">{{ t("fleet.show_" ~ s) }}</a>{% endfor %}
+  <a href="/aircraft?airline={{ airline.id }}">{{ t("fleet.search_link") }} →</a>
+</div>
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th>{{ t("field.registration") }}</th><th>{{ t("field.type") }}</th><th class="hide-sm">{{ t("field.msn") }}</th><th class="hide-sm">{{ t("field.built") }}</th><th>{{ t("field.seen") }}</th><th>{{ t("field.last_seen") }}</th><th></th></tr></thead>
+  <tbody>
+  {% for ac, seen, last_seen in rows %}
+  <tr class="{{ '' if ac.active else 'inactive' }}">
+    <td><a href="/aircraft/{{ ac.id }}"><strong>{{ ac.registration }}</strong></a>{% if seen %} <span class="ok">✓</span>{% endif %}</td>
+    <td>{{ ac.type_icao or "" }} <span class="muted">{{ ac.model or "" }}</span></td>
+    <td class="hide-sm">{{ ac.msn or "" }}</td>
+    <td class="hide-sm">{{ ac.built or "" }}</td>
+    <td>{{ seen or 0 }}</td>
+    <td>{{ last_seen | d(lang) }}</td>
+    <td>{% if user.role.value == "admin" %}
+      <form method="post" action="/aircraft/{{ ac.id }}/active" class="inline-form">
+        <input type="hidden" name="next" value="/airlines/{{ airline.id }}?show={{ show }}">
+        <button class="btn-secondary btn-sm">{{ t("aircraft.mark_inactive") if ac.active else t("aircraft.mark_active") }}</button>
+      </form>{% elif not ac.active %}{{ t("aircraft.inactive") }}{% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="7" class="muted">{{ t("common.no_data") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ t("nav.aircraft") }}{% endblock %}
+{% block content %}
+<h1>{{ t("nav.aircraft") }} <span class="count">{{ total | n(lang) }}</span>
+  {% if airline %}<span class="badge badge-muted">{{ airline.name }}</span>{% endif %}
+  {% if type %}<span class="badge badge-muted">{{ type }}</span>{% endif %}
+</h1>
+
+<form method="get" action="/aircraft" class="search-bar">
+  <label>{{ t("search.term") }}
+    <input type="text" name="q" value="{{ q }}" placeholder="{{ t('search.placeholder') }}" autofocus>
+  </label>
+  <label>{{ t("search.field") }}
+    <select name="field">
+      {% for f in fields %}<option value="{{ f }}" {{ "selected" if f == field }}>{{ t("field." ~ f) }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>{{ t("search.scope") }}
+    <select name="scope">
+      <option value="collection" {{ "selected" if scope == "collection" }}>{{ t("search.scope_collection") }}</option>
+      <option value="all" {{ "selected" if scope == "all" }}>{{ t("search.scope_all") }}</option>
+    </select>
+  </label>
+  <label>{{ t("search.sort") }}
+    <select name="sort">
+      {% for s in ["last_seen", "first_seen", "registration", "seen", "type"] %}<option value="{{ s }}" {{ "selected" if s == sort }}>{{ t("sort." ~ s) }}</option>{% endfor %}
+    </select>
+  </label>
+  {% if airline %}<input type="hidden" name="airline" value="{{ airline.id }}">{% endif %}
+  {% if type %}<input type="hidden" name="type" value="{{ type }}">{% endif %}
+  <div class="actions"><button class="btn">{{ t("search.submit") }}</button></div>
+</form>
+
+{% if rows %}
+<div class="table-wrap">
+<table class="data-table clickable-rows">
+  <thead><tr>
+    <th></th><th>{{ t("field.registration") }}</th><th>{{ t("field.type") }}</th><th class="hide-sm">{{ t("field.airline") }}</th>
+    <th class="hide-sm">{{ t("field.msn") }}</th><th>{{ t("field.seen") }}</th><th class="hide-sm">{{ t("field.last_seen") }}</th>
+  </tr></thead>
+  <tbody>
+  {% for ac, seen, last_seen, first_seen in rows %}
+  <tr data-href="/aircraft/{{ ac.id }}" class="{{ '' if ac.active else 'inactive' }}">
+    <td>{% if ac.cover_photo_id %}<img class="thumb thumb-sm" loading="lazy" src="/photos/{{ ac.cover_photo_id }}/thumb/s" alt="">{% endif %}</td>
+    <td><a href="/aircraft/{{ ac.id }}"><strong>{{ ac.registration }}</strong></a>{% if ac.christening_name %} <span class="muted">„{{ ac.christening_name }}“</span>{% endif %}</td>
+    <td>{{ ac.type_icao or "" }} <span class="muted">{{ ac.model or "" }}</span></td>
+    <td class="hide-sm">{{ ac.airline.name if ac.airline else (ac.operator_name or "") }}</td>
+    <td class="hide-sm">{{ ac.msn or "" }}</td>
+    <td>{{ seen or 0 }}</td>
+    <td class="hide-sm">{{ last_seen | d(lang) }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ m.pager(page, pages, "/aircraft?q=" ~ (q | urlencode) ~ "&field=" ~ field ~ "&scope=" ~ scope ~ "&sort=" ~ sort ~ ("&airline=" ~ airline.id if airline else "") ~ ("&type=" ~ type if type else "")) }}
+{% else %}
+<p class="muted">{{ t("search.no_results") }}</p>
+{% endif %}
+{% endblock %}

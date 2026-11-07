@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ t("nav.new_sighting") if not sighting else t("sighting.edit") }}{% endblock %}
+{% block content %}
+<h1>{% if sighting %}{{ t("sighting.edit") }}: <a href="/aircraft/{{ sighting.aircraft_id }}">{{ reg }}</a>{% else %}{{ t("nav.new_sighting") }}{% endif %}</h1>
+{% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+{% set airport_code = form.airport if form.airport is defined and form.airport else (last_airport.code if last_airport else "") %}
+<form method="post" action="{{ '/sightings/' ~ sighting.id ~ '/edit' if sighting else '/sightings/new' }}" enctype="multipart/form-data" class="form-grid" autocomplete="off">
+  {% if not sighting %}
+  <label class="suggest">{{ t("field.registration") }}
+    <input type="text" name="registration" id="reg" value="{{ form.registration if form.registration is defined and form.registration else reg }}" required autofocus style="text-transform: uppercase">
+    <div class="suggest-list" id="reg-list"></div>
+  </label>
+  {% endif %}
+  <label>{{ t("field.date") }}
+    <input type="date" name="date" value="{{ form.date if form.date is defined and form.date else today }}" {% if photo_mode == 'upload' and not sighting %}id="date"{% endif %}>
+  </label>
+  {% if not sighting and photo_mode == 'upload' %}<p class="hint full">{{ t("sighting.date_hint") }}</p>{% endif %}
+  <div class="full muted" id="ac-info" style="margin-bottom:1rem"></div>
+  <div class="full form-grid" id="new-ac" style="display:none; padding:0; border:none; background:none">
+    <p class="hint full">{{ t("sighting.new_aircraft_hint") }}</p>
+    <label>{{ t("field.type_icao") }}<input type="text" name="type_icao" value="{{ form.type_icao or '' }}" placeholder="A320" style="text-transform: uppercase"></label>
+    <label>{{ t("field.airline") }}<input type="text" name="airline" value="{{ form.airline or '' }}" placeholder="{{ t('aircraft.airline_placeholder') }}"></label>
+    <label>{{ t("field.christening_name") }}<input type="text" name="christening_name" value="{{ form.christening_name or '' }}"></label>
+  </div>
+  <label class="suggest">{{ t("field.airport") }}
+    <input type="text" name="airport" id="airport" value="{{ sighting.airport.code if sighting and sighting.airport else airport_code }}" placeholder="{{ t('sighting.airport_placeholder') }}" style="text-transform: uppercase">
+    <div class="suggest-list" id="airport-list"></div>
+    <span class="muted" id="airport-name">{{ sighting.airport.name if sighting and sighting.airport else (last_airport.name if last_airport and not form.airport else "") }}</span>
+  </label>
+  <label>{{ t("field.spot") }}
+    <select name="spot_id" id="spot" data-selected="{{ last_spot_id or '' }}"><option value="">–</option></select>
+  </label>
+  <label>{{ t("field.livery") }}
+    <input type="text" name="livery" id="livery" value="{{ sighting.livery if sighting and sighting.livery else (form.livery or '') }}" placeholder="{{ t('sighting.livery_placeholder') }}">
+  </label>
+  <label class="full">{{ t("field.notes") }}<textarea name="notes" rows="2">{{ sighting.notes if sighting and sighting.notes else (form.notes or '') }}</textarea></label>
+  {% if photo_mode == 'upload' %}
+  <label class="full">{{ t("sighting.photos") }}
+    <input type="file" name="photos" id="photos" multiple accept=".jpg,.jpeg,.png,.heic,.heif,.hif,.arw,image/*">
+  </label>
+  {% else %}
+  <p class="hint full">{{ t("sighting.nas_hint") }}</p>
+  {% endif %}
+  <div class="full actions">
+    <button class="btn">{{ t("common.save") }}</button>
+    <a class="btn-secondary" href="{{ '/aircraft/' ~ sighting.aircraft_id if sighting else '/' }}">{{ t("common.cancel") }}</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var T = {seen: {{ t("sighting.lookup_seen") | tojson }}, unknown: {{ t("sighting.lookup_unknown") | tojson }},
+           inactive: {{ t("aircraft.inactive") | tojson }}};
+  function debounce(fn, ms) { var h; return function () { var a = arguments, s = this; clearTimeout(h); h = setTimeout(function () { fn.apply(s, a); }, ms); }; }
+  function suggest(input, list, url, render, pick) {
+    var items = [], idx = -1;
+    function close() { list.style.display = "none"; idx = -1; }
+    input.addEventListener("input", debounce(function () {
+      var q = input.value.trim();
+      if (q.length < 2) { close(); return; }
+      fetch(url + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (data) {
+        items = data; list.innerHTML = "";
+        data.forEach(function (it, i) {
+          var d = document.createElement("div"); d.textContent = render(it);
+          d.addEventListener("mousedown", function (e) { e.preventDefault(); pick(it); close(); });
+          list.appendChild(d);
+        });
+        list.style.display = data.length ? "block" : "none";
+      });
+    }, 200));
+    input.addEventListener("keydown", function (e) {
+      var nodes = list.querySelectorAll("div");
+      if (list.style.display !== "block" || !nodes.length) return;
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault(); idx = (idx + (e.key === "ArrowDown" ? 1 : -1) + nodes.length) % nodes.length;
+        nodes.forEach(function (n, i) { n.classList.toggle("active", i === idx); });
+      } else if (e.key === "Enter" && idx >= 0) { e.preventDefault(); pick(items[idx]); close(); }
+      else if (e.key === "Escape") { close(); }
+    });
+    input.addEventListener("blur", function () { setTimeout(close, 150); });
+  }
+
+  var spot = document.getElementById("spot");
+  function loadSpots(airportId) {
+    var selected = spot.dataset.selected;
+    spot.innerHTML = '<option value="">–</option>';
+    if (!airportId) return;
+    fetch("/api/airports/" + airportId + "/spots").then(function (r) { return r.json(); }).then(function (data) {
+      data.forEach(function (s) {
+        var o = document.createElement("option"); o.value = s.id; o.textContent = s.name;
+        if (String(s.id) === selected) o.selected = true;
+        spot.appendChild(o);
+      });
+    });
+  }
+  var airport = document.getElementById("airport"), airportName = document.getElementById("airport-name");
+  function resolveAirport() {
+    var code = airport.value.trim();
+    if (!code) { airportName.textContent = ""; loadSpots(null); return; }
+    fetch("/api/airport-by-code?code=" + encodeURIComponent(code)).then(function (r) { return r.json(); }).then(function (a) {
+      airportName.textContent = a.found ? a.name : "?";
+      loadSpots(a.found ? a.id : null);
+    });
+  }
+  suggest(airport, document.getElementById("airport-list"), "/api/airports?q=",
+    function (a) { return (a.iata || a.icao || "") + " · " + a.name + (a.city ? " (" + a.city + ")" : ""); },
+    function (a) { airport.value = a.code; airportName.textContent = a.name; loadSpots(a.id); });
+  airport.addEventListener("change", resolveAirport);
+  resolveAirport();
+
+  // new sighting with photos: an untouched date is left empty, the server then
+  // takes the capture date of the first photo
+  var date = document.getElementById("date"), files = document.getElementById("photos");
+  if (date && files) {
+    var touched = false;
+    date.addEventListener("input", function () { touched = true; });
+    files.addEventListener("change", function () { if (!touched && files.files.length) date.value = ""; });
+  }
+
+  var reg = document.getElementById("reg");
+  if (!reg) return;
+  var info = document.getElementById("ac-info"), newAc = document.getElementById("new-ac"), livery = document.getElementById("livery");
+  function lookup() {
+    var v = reg.value.trim();
+    if (!v) { info.textContent = ""; newAc.style.display = "none"; return; }
+    fetch("/api/aircraft/lookup?reg=" + encodeURIComponent(v)).then(function (r) { return r.json(); }).then(function (a) {
+      if (!a.found) { info.textContent = T.unknown; newAc.style.display = ""; return; }
+      newAc.style.display = "none";
+      var parts = [a.registration, a.type_name || a.type_icao, a.model, a.airline, a.msn ? "MSN " + a.msn : null,
+                   a.christening_name ? "„" + a.christening_name + "“" : null, a.active ? null : T.inactive,
+                   T.seen.replace("{count}", a.seen)];
+      info.textContent = parts.filter(Boolean).join(" · ");
+      if (!livery.value && a.last_livery) livery.value = a.last_livery;
+    });
+  }
+  suggest(reg, document.getElementById("reg-list"), "/api/aircraft/suggest?q=",
+    function (a) { return a.registration + "  " + (a.type_icao || "") + "  " + (a.operator || ""); },
+    function (a) { reg.value = a.registration; lookup(); });
+  reg.addEventListener("change", lookup);
+  if (reg.value) lookup();
+})();
+</script>
+{% endblock %}

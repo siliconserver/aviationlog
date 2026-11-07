@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ t("login.title") }}{% endblock %}
+{% block content %}
+<div class="login-box">
+  <img src="/static/logo.png" alt="AviationLog" class="login-logo">
+  <h1 class="sr-only">AviationLog</h1>
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  <form method="post" action="/login">
+    <label>{{ t("login.username") }}
+      <input type="text" name="username" autocomplete="username" required autofocus>
+    </label>
+    <label>{{ t("login.password") }}
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+    <button type="submit" class="btn">{{ t("login.submit") }}</button>
+  </form>
+  {% if smtp %}<p class="muted"><a href="/forgot">{{ t("login.forgot") }}</a></p>{% endif %}
+</div>
+{% endblock %}

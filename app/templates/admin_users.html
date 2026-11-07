@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ t("nav.users") }}{% endblock %}
+{% block content %}
+<h1>{{ t("nav.users") }}</h1>
+{{ m.admin_nav("users") }}
+<div class="table-wrap">
+<table class="data-table">
+  <thead><tr><th>{{ t("login.username") }}</th><th>{{ t("common.email") }}</th><th>{{ t("users.role") }}</th><th>2FA</th><th>{{ t("users.actions") }}</th></tr></thead>
+  <tbody>
+  {% for u in users %}
+  <tr>
+    <td>{{ u.username }}</td>
+    <td>{{ u.email or "" }}</td>
+    <td>
+      <form method="post" action="/admin/users/{{ u.id }}/role" class="inline-form">
+        <select name="role" onchange="this.form.submit()" {{ "disabled" if u.id == user.id }}>
+          <option value="viewer" {{ "selected" if u.role.value == "viewer" }}>{{ t("role.viewer") }}</option>
+          <option value="admin" {{ "selected" if u.role.value == "admin" }}>{{ t("role.admin") }}</option>
+        </select>
+      </form>
+    </td>
+    <td>{% if u.totp_enabled %}<span class="ok">✓</span>{% else %}<span class="muted">–</span>{% endif %}</td>
+    <td class="wrap">
+      <div class="backup-actions">
+      {% if u.id != user.id %}
+      <form method="post" action="/admin/users/{{ u.id }}/password" class="inline-form backup-actions">
+        <input type="password" name="password" minlength="8" placeholder="{{ t('profile.new_password') }}" required style="width: 160px">
+        <button class="btn-secondary btn-sm">{{ t("users.set_password") }}</button>
+      </form>
+      {% if u.totp_enabled %}<form method="post" action="/admin/users/{{ u.id }}/2fa/reset" class="inline-form" data-confirm="{{ t('users.reset_2fa_confirm') }}"><button class="btn-secondary btn-sm">{{ t("users.reset_2fa") }}</button></form>{% endif %}
+      <form method="post" action="/admin/users/{{ u.id }}/delete" class="inline-form" data-confirm="{{ t('users.delete_confirm') }}"><button class="btn btn-danger btn-sm">{{ t("common.delete") }}</button></form>
+      {% else %}<span class="muted">{{ t("users.you") }}</span>{% endif %}
+      </div>
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<h2 style="margin-top:1.5rem">{{ t("users.new") }}</h2>
+<form method="post" action="/admin/users/new" class="form-grid">
+  <label>{{ t("login.username") }}<input type="text" name="username" required></label>
+  <label>{{ t("common.email") }}<input type="email" name="email"></label>
+  <label>{{ t("login.password") }}<input type="password" name="password" minlength="8" autocomplete="new-password" required></label>
+  <label>{{ t("users.role") }}
+    <select name="role"><option value="viewer">{{ t("role.viewer") }}</option><option value="admin">{{ t("role.admin") }}</option></select>
+  </label>
+  <div class="full actions"><button class="btn">{{ t("users.create") }}</button></div>
+</form>
+{% if not smtp %}<p class="muted">{{ t("users.no_smtp") }}</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}{{ airport.name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">{% endblock %}
+{% block content %}
+<h1>{{ airport.name }} <span class="muted">{{ airport.iata or "–" }} / {{ airport.icao or "–" }}</span>
+  {% if "name" in (airport.manual_fields or []) %}<span class="manual" title="{{ t('aircraft.manual_hint') }}">✎</span>{% endif %}</h1>
+<p class="muted">{{ airport.municipality or "" }} {{ airport.country or "" }} · {{ t("airport.sightings_here", count=total) }}
+  · <a href="/aircraft?field=airport&q={{ (airport.iata or airport.icao or airport.name) | urlencode }}">{{ t("airport.aircraft_link") }}</a></p>
+
+{% if user.role.value == "admin" %}
+<form method="post" action="/airports/{{ airport.id }}/edit" class="search-bar">
+  <label>{{ t("airport.name_edit") }}<input type="text" name="name" value="{{ airport.name }}" required style="min-width: 320px"></label>
+  <div class="actions"><button class="btn-secondary">{{ t("common.save") }}</button></div>
+</form>
+{% endif %}
+
+<div id="map" class="map map-sm" data-lat="{{ airport.lat or 0 }}" data-lon="{{ airport.lon or 0 }}"></div>
+
+<div class="panel-grid" style="margin-top:1.2rem">
+<section class="panel">
+  <h2>{{ t("airport.spots") }} <span class="count">{{ airport.spots | length }}</span></h2>
+  {% for s in airport.spots %}
+  <div class="sighting" style="padding:0.7rem 0.9rem">
+    {% if user.role.value == "admin" %}
+    <form method="post" action="/spots/{{ s.id }}/edit" class="form-grid" style="background:none;border:none;padding:0">
+      <label>{{ t("field.name") }}<input type="text" name="name" value="{{ s.name }}" required></label>
+      <label>{{ t("spot.lat") }}<input type="text" name="lat" value="{{ s.lat }}" required></label>
+      <label>{{ t("spot.lon") }}<input type="text" name="lon" value="{{ s.lon }}" required></label>
+      <label class="full">{{ t("field.notes") }}<input type="text" name="notes" value="{{ s.notes or '' }}"></label>
+      <div class="full backup-actions"><button class="btn-secondary btn-sm">{{ t("common.save") }}</button>
+        <span class="muted">{{ t("spot.sightings", count=counts.get(s.id, 0)) }}</span></div>
+    </form>
+    <form method="post" action="/spots/{{ s.id }}/delete" class="inline-form" data-confirm="{{ t('spot.delete_confirm') }}"><button class="btn btn-danger btn-sm">{{ t("common.delete") }}</button></form>
+    {% else %}
+    <strong>{{ s.name }}</strong> <span class="muted">{{ t("spot.sightings", count=counts.get(s.id, 0)) }}</span>
+    {% if s.notes %}<div class="muted">{{ s.notes }}</div>{% endif %}
+    {% endif %}
+  </div>
+  {% else %}<p class="muted">{{ t("spot.none") }}</p>{% endfor %}
+  {% if user.role.value == "admin" %}
+  <h3>{{ t("spot.new") }}</h3>
+  <p class="hint" style="margin-top:0">{{ t("spot.new_hint") }}</p>
+  <form method="post" action="/airports/{{ airport.id }}/spots" class="form-grid" style="background:none;border:none;padding:0">
+    <label>{{ t("field.name") }}<input type="text" name="name" placeholder="{{ t('spot.name_placeholder') }}" required></label>
+    <label>{{ t("spot.lat") }}<input type="text" name="lat" id="new-lat" required></label>
+    <label>{{ t("spot.lon") }}<input type="text" name="lon" id="new-lon" required></label>
+    <label class="full">{{ t("field.notes") }}<input type="text" name="notes"></label>
+    <div class="full"><button class="btn">{{ t("spot.add") }}</button></div>
+  </form>
+  {% endif %}
+</section>
+<section class="panel">
+  <h2>{{ t("stats.recent") }}</h2>
+  <table class="mini-table">
+  {% for s in recent %}<tr><td><a href="/aircraft/{{ s.aircraft_id }}#s{{ s.id }}">{{ s.aircraft.registration }}</a> <span class="muted">{{ s.aircraft.type_icao or "" }}</span></td><td>{{ s.date | d(lang) }}</td></tr>
+  {% else %}<tr><td class="muted">{{ t("common.no_data") }}</td></tr>{% endfor %}
+  </table>
+</section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/vendor/leaflet/leaflet.js"></script>
+<script>
+(function () {
+  var el = document.getElementById("map");
+  var lat = parseFloat(el.dataset.lat), lon = parseFloat(el.dataset.lon);
+  var map = L.map(el).setView([lat, lon], 13);
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+  L.circleMarker([lat, lon], {radius: 6, color: "#8b909c"}).addTo(map).bindPopup({{ airport.name | tojson }});
+  {% for s in airport.spots %}
+  L.marker([{{ s.lat }}, {{ s.lon }}]).addTo(map).bindPopup({{ s.name | tojson }} + "<br>" + {{ t("spot.sightings", count=counts.get(s.id, 0)) | tojson }});
+  {% endfor %}
+  var latIn = document.getElementById("new-lat"), lonIn = document.getElementById("new-lon"), pin = null;
+  if (latIn) {
+    map.on("click", function (e) {
+      latIn.value = e.latlng.lat.toFixed(6); lonIn.value = e.latlng.lng.toFixed(6);
+      if (pin) pin.setLatLng(e.latlng); else pin = L.marker(e.latlng, {opacity: 0.6}).addTo(map);
+    });
+  }
+})();
+</script>
+{% endblock %}

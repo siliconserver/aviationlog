@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ ac.registration }}{% endblock %}
+{% macro mf(field) %}{% if field in (ac.manual_fields or []) %}<span class="manual" title="{{ t('aircraft.manual_hint') }}">✎</span>{% endif %}{% endmacro %}
+{% block content %}
+<h1>{{ ac.registration }}
+  {% if ac.christening_name %}<span class="muted">„{{ ac.christening_name }}“</span>{% endif %}
+  {% if ac.active %}<span class="badge badge-muted ok">{{ t("aircraft.active") }}</span>{% else %}<span class="badge badge-muted nok">{{ t("aircraft.inactive") }}</span>{% endif %}
+  <span class="count">{{ t("aircraft.seen_times", count=ac.sightings|length) }}</span>
+</h1>
+
+{% if user.role.value == "admin" %}
+<div class="actions" style="margin-top:0; margin-bottom:1rem">
+  <a class="btn" href="/sightings/new?reg={{ ac.registration | urlencode }}">+ {{ t("nav.new_sighting") }}</a>
+  <a class="btn-secondary" href="/aircraft/{{ ac.id }}/edit">{{ t("common.edit") }}</a>
+  <form method="post" action="/aircraft/{{ ac.id }}/active" class="inline-form"><button class="btn-secondary">{{ t("aircraft.mark_inactive") if ac.active else t("aircraft.mark_active") }}</button></form>
+</div>
+{% endif %}
+
+<div class="hero">
+  <div>
+    {% if ac.cover_photo_id %}<a href="/photos/{{ ac.cover_photo_id }}"><img src="/photos/{{ ac.cover_photo_id }}/thumb/m" alt="{{ ac.registration }}"></a>
+    {% else %}<img src="/static/no-photo.svg" alt="">{% endif %}
+  </div>
+  <div class="detail-grid">
+    {% set tp = ac.aircraft_type %}
+    <div><span class="label">{{ t("field.type") }}{{ mf("type_icao") }}</span>
+      <span>{{ tp.display_name if tp else (ac.type_icao or "–") }}</span>
+      <span class="muted">ICAO {{ ac.type_icao or "–" }} · IATA {{ tp.iata if tp and tp.iata else "–" }}</span></div>
+    <div><span class="label">{{ t("field.model") }}{{ mf("model") }}</span><span>{{ ac.model or "–" }}</span>
+      <span class="muted">{{ ac.manufacturer or "" }}</span></div>
+    <div><span class="label">{{ t("field.airline") }}{{ mf("airline_id") }}</span>
+      {% if ac.airline %}<a href="/airlines/{{ ac.airline.id }}">{{ ac.airline.name }}</a>
+      <span class="muted">IATA {{ ac.airline.iata or "–" }} · ICAO {{ ac.airline.icao or "–" }}</span>
+      {% else %}<span>{{ ac.operator_name or "–" }}</span>{% endif %}</div>
+    <div><span class="label">{{ t("field.msn") }}{{ mf("msn") }}</span><span>{{ ac.msn or "–" }}{% if ac.line_number %} <span class="muted">LN {{ ac.line_number }}</span>{% endif %}</span></div>
+    <div><span class="label">{{ t("field.age") }}</span><span>{{ t("aircraft.years", years=ac.age_years) if ac.age_years is not none else "–" }}</span></div>
+    <div><span class="label">{{ t("field.delivery_date") }}{{ mf("delivery_date") }}</span><span>{{ ac.delivery_date | d(lang) or "–" }}</span></div>
+    <div><span class="label">{{ t("field.built") }}{{ mf("built") }}</span><span>{{ ac.built or "–" }}</span>
+      {% if ac.first_flight %}<span class="muted">{{ t("field.first_flight") }}: {{ ac.first_flight }}</span>{% endif %}</div>
+    <div><span class="label">{{ t("field.production_site") }}{{ mf("production_site") }}</span><span>{{ ac.production_site or "–" }}</span></div>
+    <div><span class="label">{{ t("field.engines") }}{{ mf("engines") }}</span><span>{{ ac.engines or "–" }}</span></div>
+    {% if ac.notes %}<div style="grid-column: 1 / -1"><span class="label">{{ t("field.notes") }}</span><span class="pre-wrap">{{ ac.notes }}</span></div>{% endif %}
+  </div>
+</div>
+
+{% if same_msn %}
+<section class="panel">
+  <h2>{{ t("aircraft.same_msn") }}</h2>
+  {% for o in same_msn %}<a href="/aircraft/{{ o.id }}">{{ o.registration }}</a> <span class="muted">({{ o.airline.name if o.airline else (o.operator_name or "") }})</span>{% if not loop.last %} · {% endif %}{% endfor %}
+</section>
+{% endif %}
+
+<h2>{{ t("aircraft.sightings") }}</h2>
+{% for s in ac.sightings %}
+<div class="sighting" id="s{{ s.id }}">
+  <div class="sighting-head">
+    <h3>{{ s.date | d(lang) }} ·
+      {% if s.airport %}<a href="/airports/{{ s.airport.id }}">{{ s.airport.name }}</a> <span class="muted">{{ s.airport.iata or "" }} {{ s.airport.icao or "" }}</span>{% else %}<span class="muted">{{ t("sighting.no_airport") }}</span>{% endif %}
+      {% if s.spot %} · {{ s.spot.name }}{% endif %}
+    </h3>
+    {% if user.role.value == "admin" %}
+    <div class="backup-actions">
+      <a class="btn-secondary btn-sm" href="/sightings/{{ s.id }}/edit">{{ t("common.edit") }}</a>
+      <form method="post" action="/sightings/{{ s.id }}/delete" class="inline-form" data-confirm="{{ t('sighting.delete_confirm') }}"><button class="btn-danger btn btn-sm">{{ t("common.delete") }}</button></form>
+    </div>
+    {% endif %}
+  </div>
+  {% if s.livery %}<div class="muted">{{ t("field.livery") }}: <a href="/aircraft?field=livery&q={{ s.livery | urlencode }}">{{ s.livery }}</a></div>{% endif %}
+  {% if s.notes %}<div class="muted pre-wrap">{{ s.notes }}</div>{% endif %}
+  {% if s.photos %}
+  <div class="photo-grid">
+    {% for p in s.gallery %}
+    <a href="/photos/{{ p.id }}">{% if ac.cover_photo_id == p.id %}<span class="star">★</span>{% endif %}<img loading="lazy" src="/photos/{{ p.id }}/thumb/s" alt="{{ p.filename }}"></a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<p class="muted">{{ t("aircraft.no_sightings") }}</p>
+{% endfor %}
+
+{% if user.role.value == "admin" and ac.sightings %}
+<form method="post" action="/aircraft/{{ ac.id }}/delete" data-confirm="{{ t('aircraft.delete_confirm') }}" class="actions">
+  <button class="btn btn-danger btn-sm">{{ t("aircraft.delete") }}</button>
+</form>
+{% endif %}
+{% endblock %}
