@@ -50,3 +50,19 @@ services:
       - ${PHOTO_HOST_DIR:-./data/app/photos}:${PHOTO_DIR:-/data/photos}${PHOTO_MOUNT_OPTS:-}
     ports:
       - "${APP_PORT:-8090}:8000"
+    # Behind Traefik: remove `ports:` above and uncomment the lines below and the
+    # top-level `networks:` block at the end. The app stays in `default` to reach the database.
+    # networks:
+    #   - default
+    #   - proxy
+    # labels:
+    #   - traefik.enable=true
+    #   - traefik.docker.network=proxy
+    #   - traefik.http.routers.aviationlog.rule=Host(`aviationlog.example.com`)
+    #   - traefik.http.routers.aviationlog.entrypoints=websecure
+    #   - traefik.http.routers.aviationlog.tls.certresolver=letsencrypt
+    #   - traefik.http.services.aviationlog.loadbalancer.server.port=8000
+
+# networks:
+#   proxy:
+#     external: true   # the Docker network your Traefik container is in

@@ -82,16 +82,28 @@ SunExpress/B738/TC-SOZ SunExpress (Istanbul Livery) B738/2026-06-15-CGN/DSC01400
 
 ## Behind Traefik
 
-The app listens on port 8000 in the container. Example labels for the `app` service (remove the `ports:` section if Traefik reaches the container over a Docker network):
+The app listens on port 8000 in the container. Traefik can only reach it if the `app` service is also attached to the Docker network Traefik runs in (called `proxy` here, use the name of your network). Without that you get a *Gateway Timeout*. In `docker-compose.yml` remove the `ports:` section of `app` and add (the same lines are prepared there as comments):
 
 ```yaml
+  app:
+    # ...
+    networks:
+      - default   # keeps the connection to the database
+      - proxy
     labels:
       - traefik.enable=true
+      - traefik.docker.network=proxy
       - traefik.http.routers.aviationlog.rule=Host(`aviationlog.example.com`)
       - traefik.http.routers.aviationlog.entrypoints=websecure
       - traefik.http.routers.aviationlog.tls.certresolver=letsencrypt
       - traefik.http.services.aviationlog.loadbalancer.server.port=8000
+
+networks:
+  proxy:
+    external: true
 ```
+
+`traefik.docker.network` tells Traefik which of the two networks to use; without it Traefik may pick the internal one and time out as well. Only the `app` service joins `proxy`, the database stays internal.
 
 With HTTPS set `SESSION_HTTPS_ONLY=true` and `BASE_URL=https://aviationlog.example.com` (used in password reset mails). Large photo uploads may need a higher body size limit in your proxy.
 
