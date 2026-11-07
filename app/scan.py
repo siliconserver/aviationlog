@@ -265,6 +265,20 @@ def delete_photo(db, photo: models.Photo):
 
 # ---- jobs --------------------------------------------------------------------------------
 
+def _readable(name: str) -> bool:
+    """False for file names that are not valid UTF-8 (e.g. Latin-1 umlauts from old SMB clients).
+    Python keeps those bytes as surrogates, which cannot be stored in the database."""
+    try:
+        name.encode("utf-8")
+        return True
+    except UnicodeEncodeError:
+        return False
+
+
+def _printable(path: str) -> str:
+    return path.encode("utf-8", "surrogateescape").decode("utf-8", "replace")
+
+
 @jobs.handler("scan")
 def job_scan(db, job):
     root = photos.photo_dir()
@@ -272,17 +286,25 @@ def job_scan(db, job):
         raise FileNotFoundError(f"photo folder {root} does not exist")
     known = {p for (p,) in db.query(models.Photo.path)}
     groups: dict[str, list[str]] = {}
+    unreadable: list[str] = []
     dirs = 0
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if not d.startswith((".", "@")))
+        rel_dir = os.path.relpath(dirpath, root).replace(os.sep, "/")
+        visible = sorted(d for d in dirnames if not d.startswith((".", "@")))
+        for d in visible:
+            if not _readable(d):
+                unreadable.append(_printable(d if rel_dir == "." else f"{rel_dir}/{d}"))
+        dirnames[:] = [d for d in visible if _readable(d)]
         dirs += 1
         if dirs % 200 == 0:
             jobs.progress(job.id, dirs, 0, "walk")
-        rel_dir = os.path.relpath(dirpath, root).replace(os.sep, "/")
         if rel_dir == ".":
             continue
         for name in sorted(filenames):
             if not photos.is_photo(name):
+                continue
+            if not _readable(name):
+                unreadable.append(_printable(f"{rel_dir}/{name}"))
                 continue
             rel = f"{rel_dir}/{name}"
             if rel in known:
@@ -308,8 +330,13 @@ def job_scan(db, job):
             db.commit()
             jobs.progress(job.id, i, total, "analyze")
     db.commit()
-    return {"folders": total, "files": sum(len(f) for f in groups.values()),
-            "problems": with_problems, "missing": missing}
+    result = {"folders": total, "files": sum(len(f) for f in groups.values()),
+              "problems": with_problems, "missing": missing}
+    if unreadable:
+        logger.warning("Skipped %d names that are not valid UTF-8, e.g. %s", len(unreadable), unreadable[0])
+        result["unreadable"] = len(unreadable)
+        result["unreadable_paths"] = unreadable[:50]
+    return result
 
 
 def apply_entry(db, entry: models.ScanEntry, make_thumbs: bool = True) -> int:
