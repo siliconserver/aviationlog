@@ -53,6 +53,20 @@ def test_opensky_classic_format(tmp_path):
     assert rows["D-AIMH"]["msn"] == "0123" and rows["D-AIMH"]["operator_icao"] == "DLH"
 
 
+def test_stage_merges_duplicate_keys(db):
+    # OpenSky lists some registrations more than once; that must not break the import
+    batch = models.ImportBatch(source="opensky", status="loading")
+    db.add(batch)
+    db.commit()
+    rows = [("D-AIMH", {"registration": "D-AIMH", "msn": "0123"}),
+            ("D-AIMH", {"registration": "D-AIMH", "type_icao": "A320", "operator_icao": "DLH"}),
+            ("D-AIMH", {"registration": "D-AIMH", "msn": "", "built": "1990"})]
+    assert importers.stage(batch.id, "aircraft", iter(rows)) == 1
+    staged = db.query(models.ImportRow).filter_by(batch_id=batch.id).one()
+    assert staged.data == {"registration": "D-AIMH", "msn": "0123", "type_icao": "A320",
+                           "operator_icao": "DLH", "built": "1990"}
+
+
 def test_import_apply_and_airline_link(db):
     import_all(db)
     ac = db.query(models.Aircraft).filter_by(registration="D-AIJC").one()

@@ -347,25 +347,43 @@ ON CONFLICT (batch_id, entity, key) DO UPDATE SET data = CASE
 """
 
 
+def merge_records(a: dict, b: dict) -> dict:
+    """Combine two source records for the same key (e.g. a registration listed twice):
+    start from the one with more fields and fill its gaps from the other."""
+    if len(b) > len(a):
+        a, b = b, a
+    merged = dict(a)
+    for k, v in b.items():
+        if merged.get(k) in (None, "") and v not in (None, ""):
+            merged[k] = v
+    return merged
+
+
 def stage(batch_id: int, entity: str, rows, job_id: int | None = None) -> int:
+    """Write parsed rows into import_rows. Duplicate keys are merged in memory first,
+    because one INSERT ... ON CONFLICT statement must not touch the same row twice;
+    duplicates across chunks are handled by ON CONFLICT."""
     raw = engine.raw_connection()
     count = 0
+
+    def flush(buf: dict):
+        values = [(batch_id, entity, key, json.dumps(data), False, True, "{}") for key, data in buf.items()]
+        execute_values(cur, STAGE_SQL, values, page_size=1000)
+        raw.commit()
+        return len(values)
+
     try:
         cur = raw.cursor()
-        buf = []
+        buf: dict = {}
         for key, data in rows:
-            buf.append((batch_id, entity, key, json.dumps(data), False, True, "{}"))
+            buf[key] = merge_records(buf[key], data) if key in buf else data
             if len(buf) >= CHUNK:
-                execute_values(cur, STAGE_SQL, buf, page_size=1000)
-                raw.commit()
-                count += len(buf)
-                buf = []
+                count += flush(buf)
+                buf = {}
                 if job_id:
                     jobs.progress(job_id, count, 0, "stage")
         if buf:
-            execute_values(cur, STAGE_SQL, buf, page_size=1000)
-            raw.commit()
-            count += len(buf)
+            count += flush(buf)
     finally:
         raw.close()
     return count
