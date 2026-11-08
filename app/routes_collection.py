@@ -3,6 +3,8 @@ import csv
 import io
 import math
 import os
+import re
+import secrets
 import shutil
 import tempfile
 from datetime import date
@@ -440,11 +442,147 @@ def photo_delete(photo_id: int, request: Request, user=Depends(get_admin), db: S
     return _redirect(f"/aircraft/{aircraft_id}")
 
 
+# ---- master data forms (airlines, airports) ---------------------------------------------------
+
+AIRLINE_FIELDS = ["name", "alias", "iata", "icao", "callsign", "country"]
+AIRPORT_FIELDS = ["name", "iata", "icao", "type", "municipality", "country", "lat", "lon"]
+AIRPORT_TYPES = ["large_airport", "medium_airport", "small_airport", "heliport", "seaplane_base"]
+_CODE_RULES = {
+    ("airline", "iata"): (r"^[A-Z0-9]{2}$", "master.error_airline_iata"),
+    ("airline", "icao"): (r"^[A-Z]{3}$", "master.error_airline_icao"),
+    ("airport", "iata"): (r"^[A-Z]{3}$", "master.error_airport_iata"),
+    ("airport", "icao"): (r"^[A-Z0-9]{4}$", "master.error_airport_icao"),
+}
+
+
+def _read_master_form(kind: str, form) -> tuple[dict, list[str]]:
+    """Form values of an airline or airport, cleaned; returns (values, error keys)."""
+    fields = AIRLINE_FIELDS if kind == "airline" else AIRPORT_FIELDS
+    model = models.Airline if kind == "airline" else models.Airport
+    values, errors = {}, []
+    for field in fields:
+        raw = (form.get(field) or "").strip()
+        if field in ("iata", "icao"):
+            raw = raw.upper()
+            rule = _CODE_RULES[(kind, field)]
+            if raw and not re.match(rule[0], raw):
+                errors.append(rule[1])
+        elif field == "country" and kind == "airport":
+            raw = raw.upper()
+        elif field == "type" and raw not in AIRPORT_TYPES:
+            raw = ""
+        if field in ("lat", "lon"):
+            value = None
+            if raw:
+                try:
+                    value = round(float(raw.replace(",", ".")), 6)
+                except ValueError:
+                    value = None
+                if value is None or abs(value) > (90 if field == "lat" else 180):
+                    errors.append("master.error_coordinates")
+                    value = None
+        else:
+            limit = getattr(model.__table__.c[field].type, "length", None)
+            value = (raw[:limit] if limit else raw) or None
+        values[field] = value
+    if not values["name"]:
+        errors.append("master.error_name")
+    if kind == "airline":
+        values["active"] = form.get("active") == "on"
+    return values, errors
+
+
+def _apply_master_values(obj, values: dict, unlock: list[str] = ()):
+    """Writes changed values; every field changed by hand is protected from imports."""
+    manual = list(obj.manual_fields or [])
+    for field, value in values.items():
+        if field == "active":
+            if obj.active != value:
+                obj.active = value
+                if field not in manual:
+                    manual.append(field)
+            continue
+        if getattr(obj, field) != value:
+            setattr(obj, field, value)
+            if field not in manual:
+                manual.append(field)
+    for field in unlock:
+        if field in manual:
+            manual.remove(field)
+    obj.manual_fields = manual
+
+
+def _master_form(request, kind: str, obj, values: dict | None = None, errors: list[str] | None = None,
+                 status_code: int = 200, deletable: bool = False, duplicate=None):
+    return render(request, "master_form.html", {
+        "kind": kind, "obj": obj, "values": values,
+        "fields": AIRLINE_FIELDS if kind == "airline" else AIRPORT_FIELDS,
+        "airport_types": AIRPORT_TYPES, "errors": [t(request, e) for e in (errors or [])],
+        "deletable": deletable, "duplicate": duplicate,
+    }, status_code=status_code)
+
+
+def _airline_sightings(db, airline_id: int) -> int:
+    return (
+        db.query(func.count(models.Sighting.id))
+        .join(models.Aircraft, models.Aircraft.id == models.Sighting.aircraft_id)
+        .filter(models.Aircraft.airline_id == airline_id)
+        .scalar()
+    )
+
+
+def _airport_sightings(db, airport_id: int) -> int:
+    return db.query(func.count(models.Sighting.id)).filter(models.Sighting.airport_id == airport_id).scalar()
+
+
+def _airline_duplicate(db, icao: str | None, exclude: int | None = None):
+    if not icao:
+        return None
+    q = db.query(models.Airline).filter(models.Airline.icao == icao, models.Airline.active.is_(True))
+    if exclude:
+        q = q.filter(models.Airline.id != exclude)
+    return q.first()
+
+
+def _airport_duplicate(db, icao: str | None, exclude: int | None = None):
+    if not icao:
+        return None
+    q = db.query(models.Airport).filter(models.Airport.icao == icao)
+    if exclude:
+        q = q.filter(models.Airport.id != exclude)
+    return q.first()
+
+
 # ---- airlines & fleets -------------------------------------------------------------------------
 
 @router.get("/airlines")
-def airlines(request: Request, user=Depends(get_user), db: Session = Depends(get_db)):
-    return render(request, "airlines.html", {"fleets": queries.fleet_completion(db)})
+def airlines(request: Request, all: int = 0, user=Depends(get_user), db: Session = Depends(get_db)):
+    return render(request, "airlines.html", {"fleets": queries.fleet_completion(db, all_airlines=bool(all)),
+                                             "show_all": bool(all)})
+
+
+@router.get("/airlines/new")
+def airline_new_form(request: Request, user=Depends(get_admin)):
+    return _master_form(request, "airline", None, values={"active": True})
+
+
+@router.post("/airlines/new")
+async def airline_new(request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    values, errors = _read_master_form("airline", await request.form())
+    duplicate = None if errors else _airline_duplicate(db, values["icao"])
+    if errors or duplicate:
+        return _master_form(request, "airline", None, values, errors, 400, duplicate=duplicate)
+    airline = models.Airline(source_key=f"manual:new-{secrets.token_hex(8)}", **values)
+    # only filled-in fields are protected, the rest may come from a later import
+    airline.manual_fields = [f for f in AIRLINE_FIELDS if values.get(f) is not None]
+    if not values["active"]:
+        airline.manual_fields.append("active")
+    db.add(airline)
+    db.flush()
+    airline.source_key = f"manual:#{airline.id}"
+    db.commit()
+    flash(request, "saved")
+    return _redirect(f"/airlines/{airline.id}")
 
 
 @router.get("/airlines/{airline_id}")
@@ -462,6 +600,97 @@ def airline_fleet(airline_id: int, request: Request, show: str = "all", user=Dep
         "airline": airline, "rows": rows, "show": show, "x": x, "y": len(active),
         "inactive": len(all_rows) - len(active),
     })
+
+
+def _airline_or_404(db, airline_id: int) -> models.Airline:
+    airline = db.get(models.Airline, airline_id)
+    if not airline:
+        raise HTTPException(404)
+    return airline
+
+
+@router.get("/airlines/{airline_id}/edit")
+def airline_edit_form(airline_id: int, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    airline = _airline_or_404(db, airline_id)
+    return _master_form(request, "airline", airline, deletable=_airline_sightings(db, airline.id) == 0)
+
+
+@router.post("/airlines/{airline_id}/edit")
+async def airline_edit(airline_id: int, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    airline = _airline_or_404(db, airline_id)
+    form = await request.form()
+    values, errors = _read_master_form("airline", form)
+    duplicate = None
+    if not errors and values["icao"] != airline.icao and values["active"]:
+        duplicate = _airline_duplicate(db, values["icao"], exclude=airline.id)
+    if errors or duplicate:
+        return _master_form(request, "airline", airline, values, errors, 400,
+                            deletable=_airline_sightings(db, airline.id) == 0, duplicate=duplicate)
+    _apply_master_values(airline, values, form.getlist("unlock"))
+    db.commit()
+    flash(request, "saved")
+    return _redirect(f"/airlines/{airline.id}")
+
+
+@router.post("/airlines/{airline_id}/delete")
+def airline_delete(airline_id: int, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    airline = _airline_or_404(db, airline_id)
+    if _airline_sightings(db, airline.id):
+        flash(request, "delete_has_sightings")
+        return _redirect(f"/airlines/{airline.id}/edit")
+    # the aircraft stay in the database, only without airline; keep imports from linking them again
+    for ac in db.query(models.Aircraft).filter(models.Aircraft.airline_id == airline.id):
+        ac.airline_id = None
+        if "airline_id" not in (ac.manual_fields or []):
+            ac.manual_fields = list(ac.manual_fields or []) + ["airline_id"]
+    db.delete(airline)
+    db.commit()
+    flash(request, "deleted")
+    return _redirect("/airlines")
+
+
+@router.get("/airlines/{airline_id}/aircraft/new")
+def fleet_aircraft_new_form(airline_id: int, request: Request, user=Depends(get_admin),
+                            db: Session = Depends(get_db)):
+    return render(request, "aircraft_new.html", {"airline": _airline_or_404(db, airline_id),
+                                                 "fields": AIRCRAFT_EDIT_FIELDS, "form": {}, "error": None})
+
+
+@router.post("/airlines/{airline_id}/aircraft/new")
+async def fleet_aircraft_new(airline_id: int, request: Request, user=Depends(get_admin),
+                             db: Session = Depends(get_db)):
+    airline = _airline_or_404(db, airline_id)
+    form = await request.form()
+    values = {f: (form.get(f) or "").strip() for f in ["registration"] + AIRCRAFT_EDIT_FIELDS}
+    reg = photos.normalize_registration(values["registration"])
+
+    def fail(error, existing=None, status_code=400):
+        return render(request, "aircraft_new.html", {"airline": airline, "fields": AIRCRAFT_EDIT_FIELDS,
+                                                     "form": values, "error": error, "existing": existing},
+                      status_code=status_code)
+
+    if not reg or not photos.PLAUSIBLE_REG_RE.match(reg):
+        return fail(t(request, "msg.registration_invalid"))
+    existing = scan.find_aircraft(db, reg)
+    if existing:
+        return fail(t(request, "fleet.aircraft_exists", registration=existing.registration), existing)
+    ac = models.Aircraft(registration=reg, source="manual", active=True, airline_id=airline.id,
+                         operator_name=airline.name, manual_fields=["airline_id"])
+    for field in AIRCRAFT_EDIT_FIELDS:
+        raw = values[field]
+        if field == "delivery_date":
+            value = _date(raw)
+        elif field == "type_icao":
+            value = raw.upper()[:8] or None
+        else:
+            value = raw or None
+        if value:
+            setattr(ac, field, value)
+            ac.manual_fields.append(field)
+    db.add(ac)
+    db.commit()
+    flash(request, "aircraft_added", registration=ac.registration)
+    return _redirect(f"/airlines/{airline.id}")
 
 
 # ---- airports & spots ----------------------------------------------------------------------------
@@ -497,6 +726,28 @@ def _airport_search(db, q: str, limit: int = 20):
     )
 
 
+@router.get("/airports/new")
+def airport_new_form(request: Request, user=Depends(get_admin)):
+    return _master_form(request, "airport", None, values={})
+
+
+@router.post("/airports/new")
+async def airport_new(request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    values, errors = _read_master_form("airport", await request.form())
+    duplicate = None if errors else _airport_duplicate(db, values["icao"])
+    if errors or duplicate:
+        return _master_form(request, "airport", None, values, errors, 400, duplicate=duplicate)
+    airport = models.Airport(ident=f"new-{secrets.token_hex(5)}", **values,
+                             manual_fields=[f for f in AIRPORT_FIELDS if values.get(f) is not None])
+    db.add(airport)
+    db.flush()
+    # "manual:" marks airports made by hand; an import adopts them by their ICAO code
+    airport.ident = f"manual:{airport.id}"[:16]
+    db.commit()
+    flash(request, "saved")
+    return _redirect(f"/airports/{airport.id}")
+
+
 @router.get("/airports/{airport_id}")
 def airport_detail(airport_id: int, request: Request, user=Depends(get_user), db: Session = Depends(get_db)):
     airport = db.get(models.Airport, airport_id)
@@ -520,22 +771,49 @@ def airport_detail(airport_id: int, request: Request, user=Depends(get_user), db
                                                    "total": sum(counts.values())})
 
 
-@router.post("/airports/{airport_id}/edit")
-def airport_edit(airport_id: int, request: Request, name: str = Form(...), user=Depends(get_admin),
-                 db: Session = Depends(get_db)):
+def _airport_or_404(db, airport_id: int) -> models.Airport:
     airport = db.get(models.Airport, airport_id)
     if not airport:
         raise HTTPException(404)
-    name = name.strip()
-    if name and name != airport.name:
-        airport.name = name
-        manual = list(airport.manual_fields or [])
-        if "name" not in manual:
-            manual.append("name")
-        airport.manual_fields = manual
-        db.commit()
-        flash(request, "saved")
+    return airport
+
+
+@router.get("/airports/{airport_id}/edit")
+def airport_edit_form(airport_id: int, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    airport = _airport_or_404(db, airport_id)
+    return _master_form(request, "airport", airport, deletable=_airport_sightings(db, airport.id) == 0)
+
+
+@router.post("/airports/{airport_id}/edit")
+async def airport_edit(airport_id: int, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    airport = _airport_or_404(db, airport_id)
+    form = await request.form()
+    values, errors = _read_master_form("airport", form)
+    duplicate = None
+    if not errors and values["icao"] != airport.icao:
+        duplicate = _airport_duplicate(db, values["icao"], exclude=airport.id)
+    if errors or duplicate:
+        return _master_form(request, "airport", airport, values, errors, 400,
+                            deletable=_airport_sightings(db, airport.id) == 0, duplicate=duplicate)
+    _apply_master_values(airport, values, form.getlist("unlock"))
+    db.commit()
+    flash(request, "saved")
     return _redirect(f"/airports/{airport.id}")
+
+
+@router.post("/airports/{airport_id}/delete")
+def airport_delete(airport_id: int, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    airport = _airport_or_404(db, airport_id)
+    if _airport_sightings(db, airport.id):
+        flash(request, "delete_has_sightings")
+        return _redirect(f"/airports/{airport.id}/edit")
+    for spot in list(airport.spots):  # its spotting locations go with it
+        db.delete(spot)
+    db.flush()
+    db.delete(airport)
+    db.commit()
+    flash(request, "deleted")
+    return _redirect("/airports")
 
 
 @router.post("/airports/{airport_id}/spots")

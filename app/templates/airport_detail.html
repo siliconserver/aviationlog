@@ -3,18 +3,17 @@
 {% block head %}<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css">{% endblock %}
 {% block content %}
 <h1>{{ airport.name }} <span class="muted">{{ airport.iata or "–" }} / {{ airport.icao or "–" }}</span>
-  {% if "name" in (airport.manual_fields or []) %}<span class="manual" title="{{ t('aircraft.manual_hint') }}">✎</span>{% endif %}</h1>
+  {% if airport.manual_fields %}<span class="manual" title="{{ t('aircraft.manual_hint') }}">✎</span>{% endif %}</h1>
 <p class="muted">{{ airport.municipality or "" }} {{ airport.country or "" }} · {{ t("airport.sightings_here", count=total) }}
   · <a href="/aircraft?field=airport&q={{ (airport.iata or airport.icao or airport.name) | urlencode }}">{{ t("airport.aircraft_link") }}</a></p>
 
 {% if user.role.value == "admin" %}
-<form method="post" action="/airports/{{ airport.id }}/edit" class="search-bar">
-  <label>{{ t("airport.name_edit") }}<input type="text" name="name" value="{{ airport.name }}" required style="min-width: 320px"></label>
-  <div class="actions"><button class="btn-secondary">{{ t("common.save") }}</button></div>
-</form>
+<div class="actions" style="margin-top:0; margin-bottom:1rem">
+  <a class="btn-secondary" href="/airports/{{ airport.id }}/edit">{{ t("common.edit") }}</a>
+</div>
 {% endif %}
 
-<div id="map" class="map map-sm" data-lat="{{ airport.lat or 0 }}" data-lon="{{ airport.lon or 0 }}"></div>
+<div id="map" class="map map-sm" data-lat="{{ airport.lat if airport.lat is not none else '' }}" data-lon="{{ airport.lon if airport.lon is not none else '' }}"></div>
 
 <div class="panel-grid" style="margin-top:1.2rem">
 <section class="panel">
@@ -64,11 +63,12 @@
 (function () {
   var el = document.getElementById("map");
   var lat = parseFloat(el.dataset.lat), lon = parseFloat(el.dataset.lon);
-  var map = L.map(el).setView([lat, lon], 13);
+  var known = !isNaN(lat) && !isNaN(lon);  // airports added by hand may have no coordinates yet
+  var map = L.map(el).setView(known ? [lat, lon] : [30, 0], known ? 13 : 2);
   // referrerPolicy: tile.openstreetmap.org answers 403 without a Referer, even if a proxy sets a strict policy
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, referrerPolicy: "strict-origin-when-cross-origin",
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
-  L.circleMarker([lat, lon], {radius: 6, color: "#8b909c"}).addTo(map).bindPopup({{ airport.name | tojson }});
+  if (known) L.circleMarker([lat, lon], {radius: 6, color: "#8b909c"}).addTo(map).bindPopup({{ airport.name | tojson }});
   {% for s in airport.spots %}
   L.marker([{{ s.lat }}, {{ s.lon }}]).addTo(map).bindPopup({{ s.name | tojson }} + "<br>" + {{ t("spot.sightings", count=counts.get(s.id, 0)) | tojson }});
   {% endfor %}

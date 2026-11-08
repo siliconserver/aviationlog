@@ -420,7 +420,72 @@ def _collection_keys(db, entity: str) -> set:
     return {r[0] for r in db.execute(text(q))}
 
 
+def adopt_manual(db, batch_id: int, entity: str) -> int:
+    """Merges airports and airlines added by hand with the imported entry of the same ICAO code.
+
+    A hand-made entry has a ``manual:`` key. If the import has a record with its ICAO code, the entry
+    takes over the record's key (the diff then only proposes fields the user left empty). If that record
+    already exists in the database, sightings, spots and aircraft move over to it, the user's own values
+    win, and the hand-made entry is removed.
+    """
+    if entity not in ("airport", "airline"):
+        return 0
+    model, key_col, fields = ENTITIES[entity]
+    key_attr = getattr(model, key_col)
+    manual = db.query(model).filter(key_attr.like("manual:%"), model.icao.isnot(None)).all()
+    if not manual:
+        return 0
+    staged = (
+        db.query(models.ImportRow)
+        .filter(models.ImportRow.batch_id == batch_id, models.ImportRow.entity == entity,
+                models.ImportRow.data["icao"].astext.in_({m.icao for m in manual}))
+        .all()
+    )
+    by_icao = {}
+    # several airlines can share an ICAO code (defunct ones): the active one wins
+    for row in sorted(staged, key=lambda r: (r.data.get("active") is False, r.id)):
+        by_icao.setdefault(row.data["icao"], row.key)
+    merged = 0
+    taken = set()
+    for obj in manual:
+        key = by_icao.get(obj.icao)
+        if not key or key in taken:
+            continue
+        taken.add(key)
+        existing = db.query(model).filter(key_attr == key).first()
+        if existing is None:
+            setattr(obj, key_col, key)
+        else:
+            _merge_into(db, entity, obj, existing, fields)
+        merged += 1
+    db.commit()
+    return merged
+
+
+def _merge_into(db, entity: str, source, target, fields: list[str]):
+    if entity == "airport":
+        db.query(models.Sighting).filter(models.Sighting.airport_id == source.id).update(
+            {"airport_id": target.id}, synchronize_session=False)
+        db.query(models.Spot).filter(models.Spot.airport_id == source.id).update(
+            {"airport_id": target.id}, synchronize_session=False)
+    else:
+        db.query(models.Aircraft).filter(models.Aircraft.airline_id == source.id).update(
+            {"airline_id": target.id}, synchronize_session=False)
+    manual = list(target.manual_fields or [])
+    for field in source.manual_fields or []:
+        if field in fields:
+            setattr(target, field, getattr(source, field))
+            if field not in manual:
+                manual.append(field)
+    target.manual_fields = manual
+    db.flush()
+    db.expire(source)
+    db.delete(source)
+    db.flush()
+
+
 def diff(db, batch_id: int, entity: str, job_id: int | None = None) -> dict:
+    adopt_manual(db, batch_id, entity)
     model, key_col, fields = ENTITIES[entity]
     key_attr = getattr(model, key_col)
     collection = _collection_keys(db, entity)

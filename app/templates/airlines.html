@@ -3,6 +3,10 @@
 {% block content %}
 <h1>{{ t("nav.fleets") }} <span class="count">{{ fleets | length }}</span></h1>
 <p class="muted">{{ t("fleet.intro") }}</p>
+<div class="actions" style="margin-top:0; margin-bottom:1rem">
+  <a class="btn-secondary" href="/airlines{{ '' if show_all else '?all=1' }}">{{ t("fleet.hide_all") if show_all else t("fleet.show_all_airlines") }}</a>
+  {% if user.role.value == "admin" %}<a class="btn" href="/airlines/new">+ {{ t("master.new_airline") }}</a>{% endif %}
+</div>
 {% if fleets %}
 <div class="table-wrap">
 <table class="data-table clickable-rows sortable-table">

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ t("fleet.add_aircraft") }}{% endblock %}
+{% block content %}
+<h1>{{ t("fleet.add_aircraft") }}: {{ airline.name }}</h1>
+<p class="muted">{{ t("fleet.add_aircraft_hint") }}</p>
+{% if error %}<div class="alert alert-error">{{ error }}{% if existing %} <a href="/aircraft/{{ existing.id }}">{{ existing.registration }}</a>{% endif %}</div>{% endif %}
+<form method="post" action="/airlines/{{ airline.id }}/aircraft/new" class="form-grid">
+  <label class="full">{{ t("field.registration") }}
+    <input type="text" name="registration" value="{{ form.registration or '' }}" placeholder="D-AIJC" required style="text-transform: uppercase">
+  </label>
+  {% for f in fields %}
+  {% if f == "notes" %}
+  <label class="full">{{ t("field." ~ f) }}<textarea name="notes" rows="3">{{ form.notes or "" }}</textarea></label>
+  {% else %}
+  <label>{{ t("field." ~ f) }}
+    <input type="{{ 'date' if f == 'delivery_date' else 'text' }}" name="{{ f }}" value="{{ form[f] or '' }}"
+      {% if f == 'built' or f == 'first_flight' %}placeholder="YYYY or YYYY-MM-DD"{% endif %}>
+  </label>
+  {% endif %}
+  {% endfor %}
+  <div class="full actions">
+    <button class="btn">{{ t("fleet.add_aircraft") }}</button>
+    <a class="btn-secondary" href="/airlines/{{ airline.id }}">{{ t("common.cancel") }}</a>
+  </div>
+</form>
+{% endblock %}

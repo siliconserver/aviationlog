@@ -3,6 +3,13 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.5 (2026-11-08)
+- Airlines and airports can be edited (name, IATA and ICAO code, country and more; airports also type, city and coordinates). Changed fields are marked with ✎ and kept by every import, like for aircraft
+- New airlines and airports can be added by hand, e.g. ones missing from the master data or ones you want to spot. If it has an ICAO code, the next import merges it with the matching entry and keeps your values; sightings, spotting locations and aircraft move along
+- "Add aircraft" on a fleet page adds an aircraft that is not spotted yet; it counts towards the fleet as missing
+- Fleets: "Show all airlines" lists every airline in the database, not only those with a spotted aircraft
+- Airlines and airports without sightings can be deleted; the aircraft of a deleted airline stay without airline, the spotting locations of a deleted airport are removed
+
 ## 0.4 (2026-11-08)
 - Desktop apps open AviationLog in their own window instead of the browser (system web view: Edge WebView2 on Windows, WebKit on macOS and Linux); the menu has "Open in browser", "Open data folder" and the photo folder choice
 - Desktop apps: downloads (CSV export, backups, original photos) ask where to save the file; links to other websites open in the browser
