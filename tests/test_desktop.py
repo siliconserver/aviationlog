@@ -45,3 +45,30 @@ def test_data_home_override(tmp_path, monkeypatch):
     d = load_launcher()
     monkeypatch.setenv("AVIATIONLOG_HOME", str(tmp_path / "x"))
     assert d.data_home() == tmp_path / "x"
+
+
+def test_filename_from_disposition():
+    d = load_launcher()
+    assert d.filename_from_disposition('attachment; filename="aviationlog.csv"') == "aviationlog.csv"
+    assert d.filename_from_disposition("attachment; filename*=UTF-8''L%C3%BCnen.ARW") == "Lünen.ARW"
+    assert d.filename_from_disposition('attachment; filename="../../evil.sh"') == "evil.sh"
+    assert d.filename_from_disposition(None) is None
+
+
+def test_login_page_shows_desktop_start_password(db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import main
+
+    with TestClient(main.app) as c:
+        assert "admin-password" not in c.get("/login").text  # server version: never
+        monkeypatch.setenv("AVIATIONLOG_DESKTOP", "1")
+        assert "admin-password" in c.get("/login").text
+        # once the password was changed, the hint is gone
+        import models
+        import security
+
+        admin = db.query(models.User).filter_by(username="admin").one()
+        admin.password_hash = security.hash_password("something-else")
+        db.commit()
+        assert "admin-password" not in c.get("/login").text

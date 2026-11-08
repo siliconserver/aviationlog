@@ -3,6 +3,12 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.4 (2026-11-08)
+- Desktop apps open AviationLog in their own window instead of the browser (system web view: Edge WebView2 on Windows, WebKit on macOS and Linux); the menu has "Open in browser", "Open data folder" and the photo folder choice
+- Desktop apps: downloads (CSV export, backups, original photos) ask where to save the file; links to other websites open in the browser
+- Desktop apps: the login page shows the start password until it is changed
+- If the system has no web view, the desktop app falls back to the small control window and the browser
+
 ## 0.3 (2026-11-08)
 - Desktop apps for Windows (installer), macOS on Apple silicon (DMG) and Debian/Ubuntu (.deb), attached to every release. They bring their own PostgreSQL database, open AviationLog in the browser and show a small window with the first login, the photo folder choice and a quit button; see "Desktop app" in the README
 - The registration search index (pg_trgm) is only created when the database offers it

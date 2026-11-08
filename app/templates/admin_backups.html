@@ -24,7 +24,7 @@
   <tr>
     <td>{{ b.filename }}</td><td>{{ b.size_kb }} KB</td><td>{{ b.created_at | d(lang) }}</td>
     <td class="wrap"><div class="backup-actions">
-      <a class="btn-secondary btn-sm" href="/admin/backups/{{ b.filename }}/download">{{ t("backups.download") }}</a>
+      <a class="btn-secondary btn-sm" href="/admin/backups/{{ b.filename }}/download" data-download>{{ t("backups.download") }}</a>
       <form method="post" action="/admin/backups/{{ b.filename }}/restore" class="inline-form backup-actions">
         <input type="text" name="confirm" placeholder="RESTORE" style="width: 110px">
         <button class="btn-secondary btn-sm">{{ t("backups.restore") }}</button>

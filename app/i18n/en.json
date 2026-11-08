@@ -196,6 +196,7 @@
  "login.2fa_title": "Two-factor authentication",
  "login.code_invalid": "Invalid code.",
  "login.confirm": "Confirm",
+ "login.desktop_start": "First login: user {username}, password {password}. Change the password under Profile after logging in; this hint then disappears.",
  "login.failed": "Wrong username or password.",
  "login.forgot": "Forgot your password?",
  "login.password": "Password",

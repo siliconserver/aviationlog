@@ -51,19 +51,20 @@ For a single computer without Docker there are ready-made apps for **Windows** (
 | --- | --- | --- |
 | Windows 10/11 | `AviationLog-<version>-windows-x64-setup.exe` | Run the installer (no administrator rights needed). Windows SmartScreen may warn because the app is not signed: *More info → Run anyway*. |
 | macOS 12 or newer, Apple silicon | `AviationLog-<version>-macos-arm64.dmg` | Drag AviationLog into *Applications*. The app is not notarized by Apple: on the first start right-click it and choose *Open*, or allow it under *System Settings → Privacy & Security*. |
-| Debian 12+, Ubuntu 22.04+ | `aviationlog_<version>_amd64.deb` | `sudo apt install ./aviationlog_<version>_amd64.deb`, then start AviationLog from the app menu or with `aviationlog`. |
+| Debian 12+, Ubuntu 22.04+ | `aviationlog_<version>_amd64.deb` | `sudo apt install ./aviationlog_<version>_amd64.deb` (also installs WebKitGTK for the window), then start AviationLog from the app menu or with `aviationlog`. |
 
-The desktop app is the same AviationLog with its own PostgreSQL database built in. Starting it opens a small window and AviationLog in the browser at `http://127.0.0.1:18090`; it is only reachable from this computer. Closing the window stops AviationLog and the database.
+The desktop app is the same AviationLog with its own PostgreSQL database built in. It opens in its own window, no browser needed; it uses the web view of the system (Edge WebView2 on Windows, WebKit on macOS and Linux). Closing the window stops AviationLog and the database. In the background it runs at `http://127.0.0.1:18090`, only reachable from this computer; *AviationLog → Open in browser* opens it in a browser tab as well.
 
-- **First login**: the window shows the user `admin` and a generated start password. Change it under *Profile*.
-- **Photos**: by default photos are uploaded with each sighting and stored in the data folder. With *Use photo archive …* you pick an existing archive folder in the [folder scheme](#folder-scheme); it is only read and scanned (like `nas` mode), never changed.
+- **First login**: the login page shows the user `admin` and a generated start password until you change it under *Profile*.
+- **Photos**: by default photos are uploaded with each sighting and stored in the data folder. With *Photos → Use photo archive …* you pick an existing archive folder in the [folder scheme](#folder-scheme); it is only read and scanned (like `nas` mode), never changed. *Photos → Store photos in AviationLog* switches back.
+- **Downloads** (CSV export, backups, original photos) ask where to save the file. Links to other websites open in your browser.
 - **Data folder** (database, backups, thumbnails, uploaded photos, settings, logs):
   - Windows: `%LOCALAPPDATA%\AviationLog`
   - macOS: `~/Library/Application Support/AviationLog`
   - Linux: `~/.local/share/aviationlog`
 
   Uninstalling the app keeps this folder. Back it up regularly; to move to another computer copy the whole folder.
-- **Settings** are in `config.json` in the data folder: `port`, `language` (`en`/`de`), `open_browser`, `photo_mode`/`photo_dir` and optionally `smtp` (e.g. `{"host": "smtp.example.com", "port": 587, "user": "…", "password": "…", "from": "…"}`). Restart the app after changing it.
+- **Settings** are in `config.json` in the data folder: `port`, `language` (`en`/`de`), `photo_mode`/`photo_dir`, `window` (`"browser"`: small control window and the normal browser instead of the app window; this is also used automatically when the system has no web view) and optionally `smtp` (e.g. `{"host": "smtp.example.com", "port": 587, "user": "…", "password": "…", "from": "…"}`). Restart the app after changing it.
 - Backups of the server version can be restored in the desktop app and the other way round (*Admin → Backups → Upload*).
 - Without a desktop (e.g. over SSH) start it with `aviationlog --headless`; Ctrl+C stops it.
 
@@ -176,7 +177,7 @@ Tests: `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/aviation
 
 Releases: add a new version at the top of [CHANGELOG.md](CHANGELOG.md). When it lands on `main`, GitHub Actions creates the tag and release, pushes the image `ghcr.io/siliconserver/aviationlog:<version>` and `:latest` (amd64 and arm64) and attaches the desktop apps for Windows, macOS and Debian to the release.
 
-Desktop apps: `pip install -r requirements.txt -r desktop/requirements.txt && python desktop/build.py` builds the package for the system you run it on (Windows needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)). The PostgreSQL 16 that is bundled comes from the [pgserver](https://github.com/orm011/pgserver) package. To try the launcher without building: `python desktop/aviationlog_desktop.py`.
+Desktop apps: `pip install -r requirements.txt -r desktop/requirements.txt && python desktop/build.py` builds the package for the system you run it on (Windows needs [Inno Setup 6](https://jrsoftware.org/isinfo.php); Linux needs `libgirepository1.0-dev libcairo2-dev gir1.2-webkit2-4.1` from apt). The PostgreSQL 16 that is bundled comes from the [pgserver](https://github.com/orm011/pgserver) package. To try the launcher without building: `python desktop/aviationlog_desktop.py`.
 
 ## License
 

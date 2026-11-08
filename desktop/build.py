@@ -19,6 +19,7 @@ import importlib.util
 import os
 import platform
 import plistlib
+import re
 import shutil
 import subprocess
 import sys
@@ -116,7 +117,16 @@ def pyinstaller(icons: dict):
         "--hidden-import", "python_multipart",
         "--exclude-module", "pytest",
         "--exclude-module", "pgserver",
+        "--collect-submodules", "webview",
     ]
+    if sys.platform.startswith("linux"):
+        # GTK and WebKitGTK come from the system (package dependencies), not from the bundle:
+        # a bundled WebKit would not find the matching helper processes of the system.
+        args += ["--collect-submodules", "gi"]  # incl. gi.overrides (Python helpers for GLib, Gtk)
+        for module in LINUX_SYSTEM_GI:
+            args += ["--exclude-module", f"gi.repository.{module}"]
+    else:
+        args += ["--exclude-module", "gi"]
     # every module of the web app (some are only imported for their side effects)
     for module in sorted(p.stem for p in APP.glob("*.py")):
         args += ["--hidden-import", module]
@@ -126,6 +136,35 @@ def pyinstaller(icons: dict):
         args += ["--icon", icons["icns"], "--osx-bundle-identifier", BUNDLE_ID]
     args.append(DESKTOP / "aviationlog_desktop.py")
     run(args, cwd=ROOT)
+
+
+LINUX_SYSTEM_GI = ("Gtk", "Gdk", "GdkPixbuf", "GLib", "GObject", "Gio", "Pango", "PangoCairo", "cairo",
+                   "Atk", "HarfBuzz", "WebKit2", "JavaScriptCore", "Soup", "xlib", "freetype2")
+# Shared libraries of the system that must not be bundled on Linux (they belong to GTK/GLib,
+# which the app takes from the system); matched against the start of the file name.
+LINUX_SYSTEM_LIBS = ("libglib-2.0", "libgobject-2.0", "libgio-2.0", "libgmodule-2.0", "libgthread-2.0",
+                     "libgirepository-1.0", "libffi", "libgtk-3", "libgdk-3", "libgdk_pixbuf", "libwebkit2gtk",
+                     "libjavascriptcoregtk", "libsoup", "libcairo", "libpango", "libharfbuzz", "libatk",
+                     "libfontconfig", "libfreetype", "libX", "libxcb", "libwayland", "libepoxy", "libpixman",
+                     "libpng16", "libmount", "libblkid", "libselinux", "libpcre", "libdbus", "libsystemd",
+                     "libgcrypt", "libgpg-error", "liblzma", "libzstd", "libbrotli", "libexpat", "libuuid",
+                     "libfribidi", "libthai", "libdatrie", "libgraphite2", "libxkbcommon")
+
+
+def strip_system_libraries(app_dir: Path):
+    internal = app_dir / "_internal"
+    removed = []
+    for path in internal.iterdir():
+        # libraries of Python wheels carry a hash in their name (libpng16-1d1ba958.so…); they stay
+        wheel_lib = re.search(r"-[0-9a-f]{8}\.so", path.name)
+        if path.is_file() and path.name.startswith(LINUX_SYSTEM_LIBS) and ".so" in path.name and not wheel_lib:
+            path.unlink()
+            removed.append(path.name)
+    typelibs = internal / "gi_typelibs"
+    if typelibs.is_dir():
+        shutil.rmtree(typelibs)
+        removed.append("gi_typelibs/")
+    print("Removed system libraries from the bundle:", ", ".join(sorted(removed)) or "none")
 
 
 # ---- Packages ----------------------------------------------------------------------
@@ -233,6 +272,8 @@ def main():
 
     icons = make_icons()
     pyinstaller(icons)
+    if sys.platform.startswith("linux"):
+        strip_system_libraries(DIST / NAME)
     if args.skip_package:
         target = DIST / f"{NAME}.app" / "Contents" / "Resources" / "pgsql" if sys.platform == "darwin" \
             else DIST / NAME / "pgsql"

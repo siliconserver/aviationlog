@@ -2,3 +2,9 @@
 pyinstaller==6.22.3
 # PostgreSQL 16 binaries for Windows, macOS and Linux
 pgserver==0.1.4
+# App window with the system web view (WebView2 / WKWebView / WebKitGTK)
+pywebview==6.2.1
+# Linux: GTK bindings for pywebview; needs libgirepository1.0-dev and libcairo2-dev to build.
+# 3.50 is the last version for gobject-introspection 1.x (Debian 12, Ubuntu 22.04).
+PyGObject==3.50.0; sys_platform == "linux"
+pycairo==1.29.2; sys_platform == "linux"
