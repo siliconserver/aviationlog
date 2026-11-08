@@ -143,3 +143,22 @@ def test_lookup_whole_collection_with_review(client, db, fake):
     db.expire_all()
     assert ac.operator_icao == "DLH" and ac.icao24 == "3c1234" and ac.operator_name == "Eurowings"
     assert ac.model == "A320-214" and ac.source == "opensky"
+
+
+def test_review_save_returns_to_row(client, db, fake):
+    ac = models.Aircraft(registration="D-AXYZ", source="opensky", manual_fields=[])
+    db.add(ac)
+    db.flush()
+    db.add(models.Sighting(aircraft_id=ac.id, date=date(2026, 5, 1)))
+    db.commit()
+    client.post("/admin/data/adsbdb/download")
+    jobs.wait_idle()
+    batch = db.query(models.ImportBatch).filter_by(source="adsbdb").one()
+    row = db.query(models.ImportRow).filter_by(batch_id=batch.id).one()
+    page = client.get(f"/admin/data/batch/{batch.id}").text
+    assert f'id="row-{row.id}"' in page and f"#row-{row.id}" in page
+    r = client.post(f"/admin/data/batch/{batch.id}/row/{row.id}", follow_redirects=False,
+                    data={"back": f"/admin/data/batch/{batch.id}?page=1#row-{row.id}"})
+    assert r.headers["location"].endswith(f"#row-{row.id}")
+    db.expire_all()
+    assert row.accepted is False
