@@ -3,6 +3,9 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.6.1 (2026-11-08)
+- The age of an aircraft is now counted from its build year instead of its delivery date. Without a build year the first flight is used, then the delivery date
+
 ## 0.6 (2026-11-08)
 - Aircraft data from adsbdb.com (free, no key): "Load data" on an aircraft page looks up the registration and fills in type, manufacturer, Mode S code and operator. Fields you changed yourself (✎) stay; model and manufacturer are only filled when empty
 - New aircraft from the sighting form, the fleet page and the photo scan are looked up automatically in the background (can be switched off in Admin → Master data)
