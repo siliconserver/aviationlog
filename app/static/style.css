@@ -466,3 +466,7 @@ code {
   .info-tip { position: static; }
   .info-tip-box { left: 4vw; right: 4vw; top: auto; width: auto; margin-top: .3rem; }
 }
+
+/* import review: after "Save" the page jumps back to the saved row and marks it */
+.import-row { scroll-margin-top: 1rem; }
+.import-row:target { outline: 2px solid var(--accent); outline-offset: 4px; }

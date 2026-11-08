@@ -36,8 +36,8 @@
 
 <p class="muted">{{ t("common.results", count=total) }}</p>
 {% for row in rows %}
-<form method="post" action="/admin/data/batch/{{ batch.id }}/row/{{ row.id }}" class="sighting">
-  <input type="hidden" name="back" value="/admin/data/batch/{{ batch.id }}?tab={{ tab }}&q={{ q | urlencode }}&page={{ page }}">
+<form method="post" action="/admin/data/batch/{{ batch.id }}/row/{{ row.id }}" class="sighting import-row" id="row-{{ row.id }}">
+  <input type="hidden" name="back" value="/admin/data/batch/{{ batch.id }}?tab={{ tab }}&q={{ q | urlencode }}&page={{ page }}#row-{{ row.id }}">
   <div class="sighting-head">
     <h3>{{ row.key }} <span class="badge badge-muted">{{ t("data." ~ row.kind) }}</span>{% if row.in_collection %} <span class="badge badge-muted ok">{{ t("data.in_collection") }}</span>{% endif %}</h3>
     <label class="checkbox" style="margin:0"><input type="checkbox" name="accepted" {{ "checked" if row.accepted }}> {{ t("data.accept") }}</label>

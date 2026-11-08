@@ -3,6 +3,9 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.6.2 (2026-11-08)
+- Import review: after "Save" on a row the page stays at that row instead of jumping back to the top; the saved row is outlined
+
 ## 0.6.1 (2026-11-08)
 - The age of an aircraft is now counted from its build year instead of its delivery date. Without a build year the first flight is used, then the delivery date
 
