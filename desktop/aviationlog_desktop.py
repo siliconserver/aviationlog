@@ -48,6 +48,7 @@ IS_MAC = sys.platform == "darwin"
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 logger = logging.getLogger("desktop")
+_fault_log = None
 
 
 # ---- Paths -------------------------------------------------------------------------
@@ -877,6 +878,15 @@ def setup_logging(home: Path):
         sys.stdout = open(os.devnull, "w")
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w")
+    try:
+        # crashes in native code (web view) still leave a Python stack trace in the logs
+        import faulthandler
+
+        global _fault_log
+        _fault_log = open(logs / "crash.log", "a", encoding="utf-8")
+        faulthandler.enable(_fault_log)
+    except Exception:
+        pass
     handler = logging.handlers.RotatingFileHandler(logs / "aviationlog.log", maxBytes=2_000_000, backupCount=3,
                                                    encoding="utf-8")
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")

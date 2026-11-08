@@ -74,11 +74,9 @@ def window_test(exe: Path):
         cmd = ["xvfb-run", "-a"] + cmd
     result = subprocess.run(cmd, env=dict(os.environ, AVIATIONLOG_HOME=str(home)), timeout=360)
     stop_leftover_postgres(exe, home)
-    log = home / "logs" / "aviationlog.log"
-    if log.exists():
-        text = log.read_text(encoding="utf-8", errors="replace")
-        print("===== window test log")
-        print(text[-6000:])
+    for log in sorted((home / "logs").glob("*.log")):
+        print(f"===== window test {log.name}")
+        print(log.read_text(encoding="utf-8", errors="replace")[-6000:])
     if result.returncode != 0:
         sys.exit(f"Window test failed (exit code {result.returncode})")
     print("Smoke test passed (app window)")

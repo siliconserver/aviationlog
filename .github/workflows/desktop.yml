@@ -81,6 +81,14 @@ jobs:
           esac
           python desktop/smoke_test.py "$exe"
 
+      - name: Windows event log after a crash
+        if: failure() && matrix.target == 'windows'
+        shell: pwsh
+        run: |
+          Get-WinEvent -LogName Application -MaxEvents 40 |
+            Where-Object { $_.ProviderName -match '.NET Runtime|Application Error|WebView' } |
+            Format-List TimeCreated, ProviderName, Message
+
       - name: Check the Debian package
         if: matrix.target == 'linux'
         run: |
