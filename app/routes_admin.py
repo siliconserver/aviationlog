@@ -245,6 +245,18 @@ async def photos_entry(entry_id: int, request: Request, user=Depends(get_admin),
     return _redirect(form.get("back") or "/admin/photos")
 
 
+@router.post("/photos/entry/{entry_id}/delete")
+async def photos_entry_delete(entry_id: int, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    """Removes a review entry only; the folder on the NAS is untouched and shows up again with the next scan."""
+    entry = db.get(models.ScanEntry, entry_id)
+    if not entry or entry.applied:
+        raise HTTPException(404)
+    form = await request.form()
+    db.delete(entry)
+    db.commit()
+    return _redirect(form.get("back") or "/admin/photos")
+
+
 @router.post("/photos/apply")
 def photos_apply(request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
     scan_job = _latest_scan(db)

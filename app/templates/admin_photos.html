@@ -11,10 +11,10 @@
 
 <div class="actions" style="margin-bottom:1.2rem">
   {% if photo_mode == "nas" %}
-  <form method="post" action="/admin/photos/scan" class="inline-form"><button class="btn" {{ "disabled" if job }}>{{ t("photos.scan") }}</button></form>
+  <form method="post" action="/admin/photos/scan" class="inline-form"><button class="btn" title="{{ t('photos.scan_tip') }}" {{ "disabled" if job }}>{{ t("photos.scan") }}</button></form>
   {% endif %}
-  <form method="post" action="/admin/photos/thumbnails" class="inline-form"><button class="btn-secondary" {{ "disabled" if job }}>{{ t("photos.thumbnails") }}</button></form>
-  <form method="post" action="/admin/photos/remove-missing" class="inline-form" data-confirm="{{ t('photos.remove_missing_confirm') }}"><button class="btn-secondary" {{ "disabled" if job }}>{{ t("photos.remove_missing") }}</button></form>
+  <form method="post" action="/admin/photos/thumbnails" class="inline-form"><button class="btn-secondary" title="{{ t('photos.thumbnails_tip') }}" {{ "disabled" if job }}>{{ t("photos.thumbnails") }}</button></form>
+  <form method="post" action="/admin/photos/remove-missing" class="inline-form" data-confirm="{{ t('photos.remove_missing_confirm') }}"><button class="btn-secondary" title="{{ t('photos.remove_missing_tip') }}" {{ "disabled" if job }}>{{ t("photos.remove_missing") }}</button></form>
 </div>
 
 {% if photo_mode == "nas" %}
@@ -54,6 +54,7 @@
   <div class="backup-actions">
     <label class="checkbox" style="margin:0"><input type="checkbox" name="accepted" {{ "checked" if e.accepted }}> {{ t("photos.accept") }}</label>
     <button class="btn-secondary btn-sm">{{ t("photos.save_entry") }}</button>
+    <button class="btn-secondary btn-sm" formaction="/admin/photos/entry/{{ e.id }}/delete" title="{{ t('photos.delete_entry_tip') }}">{{ t("photos.delete_entry") }}</button>
   </div>
   {% endif %}
 </form>

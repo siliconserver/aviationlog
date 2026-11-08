@@ -3,6 +3,10 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.2.3 (2026-11-08)
+- Photos: "Remove entry" button in the scan review; the folder on the NAS stays and comes back with the next scan
+- Photos: the scan button is now called "Scan archive for new photos"; the buttons explain on mouseover what they do
+
 ## 0.2.2 (2026-11-07)
 - Photo scan: invisible characters in folder names are ignored, e.g. a trailing space or dot that macOS stores on the NAS as a special character (shown as a box), zero-width characters, and decomposed umlauts
 - Photo scan: folders without the type folder (`<Airline>/<REG Airline Type>/<date>`) are recognised, the type is taken from the aircraft folder; an airline abbreviation such as "MGA" for "Mavi Gök Airlines" is no longer taken as christening name
