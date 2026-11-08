@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=AviationLog
+GenericName=Plane spotting log
+GenericName[de]=Spotter-Logbuch
+Comment=Log the aircraft you photographed
+Comment[de]=Fotografierte Flugzeuge erfassen und wiederfinden
+Exec=aviationlog
+Icon=aviationlog
+Terminal=false
+Categories=Graphics;Photography;
+Keywords=aviation;spotting;aircraft;planespotting;
+StartupNotify=true

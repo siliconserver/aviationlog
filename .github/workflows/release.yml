@@ -1,5 +1,6 @@
 # Creates a tag and GitHub release for the top version in CHANGELOG.md as soon as it
-# lands on main, and builds the versioned Docker image (docker.yml).
+# lands on main, builds the versioned Docker image (docker.yml) and attaches the
+# desktop apps for Windows, macOS and Debian to the release (desktop.yml).
 # If the tag already exists, nothing happens.
 name: Release
 
@@ -64,5 +65,14 @@ jobs:
       contents: read
       packages: write
     uses: ./.github/workflows/docker.yml
+    with:
+      version: ${{ needs.release.outputs.version }}
+
+  desktop:
+    needs: release
+    if: needs.release.outputs.created == 'true' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/desktop.yml
     with:
       version: ${{ needs.release.outputs.version }}

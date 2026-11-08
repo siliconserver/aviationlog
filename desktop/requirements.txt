@@ -1,0 +1,4 @@
+# Additional packages for building the desktop apps (python desktop/build.py)
+pyinstaller==6.22.3
+# PostgreSQL 16 binaries for Windows, macOS and Linux
+pgserver==0.1.4
