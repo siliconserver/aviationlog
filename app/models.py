@@ -175,16 +175,22 @@ class Aircraft(Base):
     )
     cover_photo: Mapped["Photo | None"] = relationship(foreign_keys=[cover_photo_id], post_update=True)
 
+    @staticmethod
+    def _start_date(value: str | None) -> date | None:
+        """Parse "YYYY" or "YYYY-MM-DD"; a bare year counts from mid-year."""
+        if not value or not value[:4].isdigit():
+            return None
+        if len(value) >= 10:
+            try:
+                return date.fromisoformat(value[:10])
+            except ValueError:
+                pass
+        return date(int(value[:4]), 7, 1)
+
     @property
     def age_years(self) -> float | None:
-        start = None
-        if self.delivery_date:
-            start = self.delivery_date
-        elif self.built and self.built[:4].isdigit():
-            try:
-                start = date.fromisoformat(self.built) if len(self.built) == 10 else date(int(self.built[:4]), 7, 1)
-            except ValueError:
-                start = date(int(self.built[:4]), 7, 1)
+        """Age counted from the build year; falls back to first flight, then delivery."""
+        start = self._start_date(self.built) or self._start_date(self.first_flight) or self.delivery_date
         if not start:
             return None
         return round((date.today() - start).days / 365.25, 1)
