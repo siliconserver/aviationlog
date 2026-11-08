@@ -117,6 +117,49 @@ document.addEventListener("keydown", function (e) {
     o.querySelector(".info-tip-btn").setAttribute("aria-expanded", "false");
   });
 });
+// sortable tables (whole list on the page): 1st click ascending, 2nd descending, 3rd original order
+document.querySelectorAll("table.sortable-table").forEach(function (table) {
+  var tbody = table.tBodies[0];
+  if (!tbody) return;
+  var rows = Array.prototype.filter.call(tbody.rows, function (r) { return !r.classList.contains("no-sort"); });
+  if (rows.length < 2) return;
+  rows.forEach(function (r, i) { r.dataset.origIndex = i; });
+  var collator = new Intl.Collator(document.documentElement.lang || undefined, { numeric: true, sensitivity: "base" });
+  var headers = table.querySelectorAll("thead th[data-sort]");
+  headers.forEach(function (th) {
+    var col = th.cellIndex, type = th.dataset.sort;
+    th.classList.add("sortable");
+    th.setAttribute("aria-sort", "none");
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "th-sort";
+    while (th.firstChild) btn.appendChild(th.firstChild);
+    th.appendChild(btn);
+    btn.addEventListener("click", function () {
+      var dir = th.classList.contains("sort-asc") ? "desc" : th.classList.contains("sort-desc") ? "" : "asc";
+      headers.forEach(function (h) { h.classList.remove("sort-asc", "sort-desc"); h.setAttribute("aria-sort", "none"); });
+      var value = function (r) {
+        var c = r.cells[col], v = c ? (c.dataset.sortValue !== undefined ? c.dataset.sortValue : c.textContent) : "";
+        return v.trim();
+      };
+      var sorted = rows.slice();
+      if (dir) {
+        th.classList.add("sort-" + dir);
+        th.setAttribute("aria-sort", dir === "asc" ? "ascending" : "descending");
+        sorted.sort(function (a, b) {
+          var va = value(a), vb = value(b);
+          if (va === "" || vb === "") return va === vb ? a.dataset.origIndex - b.dataset.origIndex : (va === "" ? 1 : -1);
+          var res = type === "num" ? parseFloat(va) - parseFloat(vb) : collator.compare(va, vb);
+          if (dir === "desc") res = -res;
+          return res || a.dataset.origIndex - b.dataset.origIndex;
+        });
+      } else {
+        sorted.sort(function (a, b) { return a.dataset.origIndex - b.dataset.origIndex; });
+      }
+      sorted.forEach(function (r) { tbody.appendChild(r); });
+    });
+  });
+});
 document.querySelectorAll("form[data-confirm]").forEach(function (f) {
   f.addEventListener("submit", function (e) { if (!confirm(f.dataset.confirm)) e.preventDefault(); });
 });

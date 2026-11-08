@@ -291,6 +291,18 @@ code {
 .data-table td.wrap { white-space: normal; }
 .data-table th { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; }
 .data-table tr:last-child td { border-bottom: none; }
+/* sortable column headers: arrow shows the direction, faint double arrow when unsorted */
+.data-table th.sortable { padding: 0; }
+.data-table th .th-sort {
+  display: block; width: 100%; padding: 0.6rem 0.8rem; margin: 0;
+  background: none; border: none; border-radius: 0; cursor: pointer;
+  color: inherit; font: inherit; text-transform: inherit; text-align: left; letter-spacing: inherit;
+}
+.data-table th .th-sort:hover { color: var(--text); text-decoration: none; }
+.data-table th .th-sort::after { content: "↕"; margin-left: 0.3rem; opacity: 0.35; text-transform: none; }
+.data-table th.sort-asc .th-sort::after { content: "▲"; opacity: 1; font-size: 0.7em; }
+.data-table th.sort-desc .th-sort::after { content: "▼"; opacity: 1; font-size: 0.7em; }
+.data-table th.sort-asc .th-sort, .data-table th.sort-desc .th-sort { color: var(--text); }
 
 .backup-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .backup-actions form, .backup-actions a { margin: 0; }

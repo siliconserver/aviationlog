@@ -73,14 +73,19 @@ def dashboard(request: Request, user=Depends(get_user), db: Session = Depends(ge
 
 @router.get("/aircraft")
 def aircraft_list(request: Request, q: str = "", field: str = "all", scope: str = "collection",
-                  sort: str = "last_seen", page: int = 1, airline: int | None = None, type: str | None = None,
-                  user=Depends(get_user), db: Session = Depends(get_db)):
+                  sort: str = "", dir: str = "asc", page: int = 1, airline: int | None = None,
+                  type: str | None = None, user=Depends(get_user), db: Session = Depends(get_db)):
     if field not in queries.SEARCH_FIELDS:
         field = "all"
+    if sort not in queries.SORT_COLUMNS:
+        sort = ""
+    if dir not in ("asc", "desc"):
+        dir = "asc"
     page = max(page, 1)
-    rows, total = queries.search_aircraft(db, q, field, scope, sort, page, airline_id=airline, type_icao=type)
+    rows, total = queries.search_aircraft(db, q, field, scope, sort, dir, page, airline_id=airline, type_icao=type)
     return render(request, "aircraft_list.html", {
-        "rows": rows, "total": total, "q": q, "field": field, "scope": scope, "sort": sort, "page": page,
+        "rows": rows, "total": total, "q": q, "field": field, "scope": scope, "sort": sort, "dir": dir,
+        "page": page,
         "pages": max(1, math.ceil(total / 50)), "fields": queries.SEARCH_FIELDS,
         "airline": db.get(models.Airline, airline) if airline else None, "type": type,
     })
