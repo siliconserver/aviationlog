@@ -606,9 +606,15 @@ class Launcher:
             if self_test:
                 self._self_test()
 
+        # window icon: only GTK takes a PNG (Windows uses the .exe icon, macOS the app bundle's)
         icon = app_dir() / "static" / "icons" / "icon-512.png"
+        use_icon = sys.platform.startswith("linux") and icon.exists()
+        if sys.platform.startswith("linux"):
+            # WebKitGTK's DMA-BUF renderer leaves the window blank with some graphics drivers
+            # and in virtual machines; the fallback renderer works everywhere
+            os.environ.setdefault("WEBKIT_DISABLE_DMABUF_RENDERER", "1")
         webview.start(after_start, menu=menu, private_mode=False, storage_path=str(self.home / "webview"),
-                      icon=str(icon) if icon.exists() else None)
+                      icon=str(icon) if use_icon else None)
         self.shutdown()
 
     def _self_test(self):

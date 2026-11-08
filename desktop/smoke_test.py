@@ -72,7 +72,8 @@ def window_test(exe: Path):
     cmd = [str(exe), "--self-test"]
     if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
         cmd = ["xvfb-run", "-a"] + cmd
-    result = subprocess.run(cmd, env=dict(os.environ, AVIATIONLOG_HOME=str(home)), timeout=360)
+    result = subprocess.run(cmd, env=dict(os.environ, AVIATIONLOG_HOME=str(home), PYWEBVIEW_LOG="debug"),
+                            timeout=360)
     stop_leftover_postgres(exe, home)
     for log in sorted((home / "logs").glob("*.log")):
         print(f"===== window test {log.name}")
