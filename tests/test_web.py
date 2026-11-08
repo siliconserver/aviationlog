@@ -258,6 +258,36 @@ def test_nas_scan_skips_invalid_utf8_names(client, db, tmp_path, monkeypatch):
     assert "Mavi Gök Airlines/B738/TC-MGN MGA B738/2026-05-19-MUC" in [e.folder for e in db.query(models.ScanEntry)]
 
 
+def test_scan_entry_delete_and_rescan(client, db, tmp_path, monkeypatch):
+    import jobs
+    import_all(db)
+    root = tmp_path / "nas"
+    monkeypatch.setenv("PHOTO_MODE", "nas")
+    monkeypatch.setenv("PHOTO_DIR", str(root))
+    old = root / "Unsortiert/N410S"
+    old.mkdir(parents=True)
+    fixtures_photos.jpeg_with_exif(str(old / "a.jpg"), gps=None)
+    client.post("/admin/photos/scan")
+    jobs.wait_idle()
+    db.expire_all()
+    entry = db.query(models.ScanEntry).one()
+    # a corrected and ticked entry is discarded by the next scan as well
+    client.post(f"/admin/photos/entry/{entry.id}", data={"registration": "N714DS", "accepted": "on"})
+    new = root / "Phoenix Air/GLF3/N714DS Phoenix Air GLF3/2025-11-18-STR"
+    new.mkdir(parents=True)
+    (old / "a.jpg").rename(new / "a.jpg")
+    client.post("/admin/photos/scan")
+    jobs.wait_idle()
+    db.expire_all()
+    assert [e.folder for e in db.query(models.ScanEntry)] == [str(new.relative_to(root))]
+    # removing an entry only removes it from the list
+    entry = db.query(models.ScanEntry).one()
+    r = client.post(f"/admin/photos/entry/{entry.id}/delete", data={"back": "/admin/photos"})
+    assert r.status_code == 200
+    db.expire_all()
+    assert db.query(models.ScanEntry).count() == 0 and (new / "a.jpg").exists()
+
+
 def test_two_factor_login(client, db):
     import pyotp
 
