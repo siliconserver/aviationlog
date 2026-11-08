@@ -38,7 +38,7 @@ jobs:
           - target: windows
             os: windows-2022
           - target: macos
-            os: macos-14 # Apple Silicon
+            os: macos-latest # Apple Silicon (arm64)
           - target: linux
             os: ubuntu-22.04 # older glibc, so the .deb runs on Debian 12 and newer
     steps:
