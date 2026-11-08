@@ -294,7 +294,7 @@
  "photos.reg_unknown_hint": "the photos go to a new aircraft without registration, you can add the registration later on the aircraft page",
  "photos.remove_missing": "Remove photos whose files are gone",
  "photos.remove_missing_confirm": "Remove all photos whose files no longer exist?",
- "photos.remove_missing_tip": "Removes photos from AviationLog whose file no longer exists (e.g. deleted or moved on the NAS). Only the database entry and preview are removed; sightings and aircraft stay. Nothing on the NAS is deleted.",
+ "photos.remove_missing_tip": "Removes photos from AviationLog whose file no longer exists (e.g. deleted or moved on the NAS). Only the database entry and preview are removed; sightings and aircraft stay. Nothing on the NAS is deleted. Only use it while the NAS share is mounted, otherwise every photo counts as missing.",
  "photos.review": "Detected folders",
  "photos.save_entry": "Save correction",
  "photos.scan": "Scan archive for new photos",

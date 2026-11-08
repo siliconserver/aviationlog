@@ -294,7 +294,7 @@
  "photos.reg_unknown_hint": "die Fotos kommen zu einem neuen Flugzeug ohne Registrierung, die Registrierung kannst du später auf der Flugzeugseite nachtragen",
  "photos.remove_missing": "Fotos ohne Datei entfernen",
  "photos.remove_missing_confirm": "Alle Fotos entfernen, deren Datei nicht mehr existiert?",
- "photos.remove_missing_tip": "Entfernt Fotos aus AviationLog, deren Datei es nicht mehr gibt (z. B. auf dem NAS gelöscht oder verschoben). Nur der Datenbankeintrag und das Vorschaubild verschwinden, Sichtungen und Flugzeuge bleiben. Auf dem NAS wird nichts gelöscht.",
+ "photos.remove_missing_tip": "Entfernt Fotos aus AviationLog, deren Datei es nicht mehr gibt (z. B. auf dem NAS gelöscht oder verschoben). Nur der Datenbankeintrag und das Vorschaubild verschwinden, Sichtungen und Flugzeuge bleiben. Auf dem NAS wird nichts gelöscht. Nur klicken, wenn die NAS-Freigabe eingebunden ist, sonst gelten alle Fotos als fehlend.",
  "photos.review": "Erkannte Ordner",
  "photos.save_entry": "Korrektur speichern",
  "photos.scan": "Archiv auf neue Fotos scannen",
