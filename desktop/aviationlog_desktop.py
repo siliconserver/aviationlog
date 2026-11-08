@@ -602,6 +602,10 @@ class Launcher:
                 if self_test:
                     self.window.destroy()
                 return
+            # pywebview gives up after 20 s; the first start of a web view can take longer
+            # (e.g. Linux without a desktop portal waits ~25 s for a D-Bus timeout)
+            if not self.window.events.shown.wait(180):
+                raise RuntimeError("the app window did not appear")
             self.window.load_url(self.url)
             if self_test:
                 self._self_test()
