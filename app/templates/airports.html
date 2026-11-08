@@ -9,18 +9,18 @@
 {% if q %}
 <h2>{{ t("airport.results") }}</h2>
 <div class="table-wrap">
-<table class="data-table clickable-rows">
-  <thead><tr><th>IATA</th><th>ICAO</th><th>{{ t("field.name") }}</th><th class="hide-sm">{{ t("airport.city") }}</th></tr></thead>
+<table class="data-table clickable-rows sortable-table">
+  <thead><tr><th data-sort="text">IATA</th><th data-sort="text">ICAO</th><th data-sort="text">{{ t("field.name") }}</th><th class="hide-sm" data-sort="text">{{ t("airport.city") }}</th></tr></thead>
   <tbody>{% for a in results %}<tr data-href="/airports/{{ a.id }}"><td>{{ a.iata or "" }}</td><td>{{ a.icao or "" }}</td><td><a href="/airports/{{ a.id }}">{{ a.name }}</a></td><td class="hide-sm">{{ a.municipality or "" }} {{ a.country or "" }}</td></tr>
-  {% else %}<tr><td colspan="4" class="muted">{{ t("search.no_results") }}</td></tr>{% endfor %}</tbody>
+  {% else %}<tr class="no-sort"><td colspan="4" class="muted">{{ t("search.no_results") }}</td></tr>{% endfor %}</tbody>
 </table>
 </div>
 {% endif %}
 <h2 style="margin-top:1.5rem">{{ t("airport.visited") }} <span class="count">{{ visited | length }}</span></h2>
 {% if visited %}
 <div class="table-wrap">
-<table class="data-table clickable-rows">
-  <thead><tr><th>IATA</th><th>ICAO</th><th>{{ t("field.name") }}</th><th>{{ t("stats.sightings") }}</th><th class="hide-sm">{{ t("airport.spots") }}</th></tr></thead>
+<table class="data-table clickable-rows sortable-table">
+  <thead><tr><th data-sort="text">IATA</th><th data-sort="text">ICAO</th><th data-sort="text">{{ t("field.name") }}</th><th data-sort="num">{{ t("stats.sightings") }}</th><th class="hide-sm" data-sort="num">{{ t("airport.spots") }}</th></tr></thead>
   <tbody>{% for a, n in visited %}<tr data-href="/airports/{{ a.id }}"><td>{{ a.iata or "" }}</td><td>{{ a.icao or "" }}</td><td><a href="/airports/{{ a.id }}">{{ a.name }}</a></td><td>{{ n }}</td><td class="hide-sm">{{ a.spots | length }}</td></tr>{% endfor %}</tbody>
 </table>
 </div>

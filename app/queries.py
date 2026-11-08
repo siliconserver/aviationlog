@@ -53,9 +53,13 @@ def _conditions(field: str, q: str):
     return conds.get(field, conds["registration"])
 
 
+SORT_COLUMNS = ["registration", "type", "airline", "msn", "seen", "last_seen", "first_seen"]
+
+
 def search_aircraft(db, q: str = "", field: str = "all", scope: str = "collection",
-                    sort: str = "last_seen", page: int = 1, per_page: int = 50, airline_id: int | None = None,
-                    type_icao: str | None = None):
+                    sort: str = "", direction: str = "asc", page: int = 1, per_page: int = 50,
+                    airline_id: int | None = None, type_icao: str | None = None):
+    """Search aircraft. Without ``sort`` the default order applies (last seen first)."""
     sightings = (
         select(S.aircraft_id, func.count(S.id).label("seen"), func.max(S.date).label("last_seen"),
                func.min(S.date).label("first_seen"))
@@ -75,13 +79,23 @@ def search_aircraft(db, q: str = "", field: str = "all", scope: str = "collectio
     if type_icao:
         query = query.filter(A.type_icao == type_icao)
     total = query.count()
-    order = {
-        "registration": [A.registration],
-        "last_seen": [sightings.c.last_seen.desc().nullslast(), A.registration],
-        "first_seen": [sightings.c.first_seen.desc().nullslast(), A.registration],
-        "seen": [sightings.c.seen.desc().nullslast(), A.registration],
-        "type": [A.type_icao, A.registration],
-    }.get(sort, [A.registration])
+    if sort in SORT_COLUMNS:
+        if sort == "airline":
+            query = query.outerjoin(models.Airline, models.Airline.id == A.airline_id)
+        column = {
+            "registration": A.registration,
+            "type": A.type_icao,
+            "airline": func.lower(func.coalesce(models.Airline.name, A.operator_name)),
+            "msn": A.msn,
+            "seen": func.coalesce(sightings.c.seen, 0),
+            "last_seen": sightings.c.last_seen,
+            "first_seen": sightings.c.first_seen,
+        }[sort]
+        # empty values always at the end, whatever the direction
+        column = column.desc().nullslast() if direction == "desc" else column.asc().nullslast()
+        order = [column, A.registration]
+    else:
+        order = [sightings.c.last_seen.desc().nullslast(), A.registration]
     rows = query.order_by(*order).offset((page - 1) * per_page).limit(per_page).all()
     return rows, total
 

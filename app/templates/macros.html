@@ -67,3 +67,9 @@
 <span>{{ t("opensky.website") }} <a href="https://opensky-network.org/" target="_blank" rel="noopener">The OpenSky Network</a></span>
 </span></span>
 {%- endmacro %}
+
+{# Sortable column header for server-sorted lists: 1st click ascending, 2nd descending, 3rd default order. #}
+{% macro sort_th(col, label, sort, dir, base, cls="") -%}
+{% if sort == col %}{% set next = ("&sort=" ~ col ~ "&dir=desc") if dir == "asc" else "" %}{% else %}{% set next = "&sort=" ~ col ~ "&dir=asc" %}{% endif %}
+<th class="sortable {{ cls }}{{ (' sort-' ~ dir) if sort == col }}" aria-sort="{{ ('ascending' if dir == 'asc' else 'descending') if sort == col else 'none' }}"><a class="th-sort" href="{{ base }}{{ next }}">{{ label }}</a></th>
+{%- endmacro %}

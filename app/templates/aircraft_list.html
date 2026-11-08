@@ -22,22 +22,24 @@
       <option value="all" {{ "selected" if scope == "all" }}>{{ t("search.scope_all") }}</option>
     </select>
   </label>
-  <label>{{ t("search.sort") }}
-    <select name="sort">
-      {% for s in ["last_seen", "first_seen", "registration", "seen", "type"] %}<option value="{{ s }}" {{ "selected" if s == sort }}>{{ t("sort." ~ s) }}</option>{% endfor %}
-    </select>
-  </label>
+  {% if sort %}<input type="hidden" name="sort" value="{{ sort }}"><input type="hidden" name="dir" value="{{ dir }}">{% endif %}
   {% if airline %}<input type="hidden" name="airline" value="{{ airline.id }}">{% endif %}
   {% if type %}<input type="hidden" name="type" value="{{ type }}">{% endif %}
   <div class="actions"><button class="btn">{{ t("search.submit") }}</button></div>
 </form>
 
+{% set base = "/aircraft?q=" ~ (q | urlencode) ~ "&field=" ~ field ~ "&scope=" ~ scope ~ ("&airline=" ~ airline.id if airline else "") ~ ("&type=" ~ (type | urlencode) if type else "") %}
 {% if rows %}
 <div class="table-wrap">
 <table class="data-table clickable-rows">
   <thead><tr>
-    <th></th><th>{{ t("field.registration") }}</th><th>{{ t("field.type") }}</th><th class="hide-sm">{{ t("field.airline") }}</th>
-    <th class="hide-sm">{{ t("field.msn") }}</th><th>{{ t("field.seen") }}</th><th class="hide-sm">{{ t("field.last_seen") }}</th>
+    <th></th>
+    {{ m.sort_th("registration", t("field.registration"), sort, dir, base) }}
+    {{ m.sort_th("type", t("field.type"), sort, dir, base) }}
+    {{ m.sort_th("airline", t("field.airline"), sort, dir, base, "hide-sm") }}
+    {{ m.sort_th("msn", t("field.msn"), sort, dir, base, "hide-sm") }}
+    {{ m.sort_th("seen", t("field.seen"), sort, dir, base) }}
+    {{ m.sort_th("last_seen", t("field.last_seen"), sort, dir, base, "hide-sm") }}
   </tr></thead>
   <tbody>
   {% for ac, seen, last_seen, first_seen in rows %}
@@ -54,7 +56,7 @@
   </tbody>
 </table>
 </div>
-{{ m.pager(page, pages, "/aircraft?q=" ~ (q | urlencode) ~ "&field=" ~ field ~ "&scope=" ~ scope ~ "&sort=" ~ sort ~ ("&airline=" ~ airline.id if airline else "") ~ ("&type=" ~ type if type else "")) }}
+{{ m.pager(page, pages, base ~ ("&sort=" ~ sort ~ "&dir=" ~ dir if sort else "")) }}
 {% else %}
 <p class="muted">{{ t("search.no_results") }}</p>
 {% endif %}

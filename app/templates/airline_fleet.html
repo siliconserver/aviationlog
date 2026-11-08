@@ -14,17 +14,17 @@
   <a href="/aircraft?airline={{ airline.id }}">{{ t("fleet.search_link") }} →</a>
 </div>
 <div class="table-wrap">
-<table class="data-table">
-  <thead><tr><th>{{ t("field.registration") }}</th><th>{{ t("field.type") }}</th><th class="hide-sm">{{ t("field.msn") }}</th><th class="hide-sm">{{ t("field.built") }}</th><th>{{ t("field.seen") }}</th><th>{{ t("field.last_seen") }}</th><th></th></tr></thead>
+<table class="data-table sortable-table">
+  <thead><tr><th data-sort="text">{{ t("field.registration") }}</th><th data-sort="text">{{ t("field.type") }}</th><th class="hide-sm" data-sort="text">{{ t("field.msn") }}</th><th class="hide-sm" data-sort="num">{{ t("field.built") }}</th><th data-sort="num">{{ t("field.seen") }}</th><th data-sort="text">{{ t("field.last_seen") }}</th><th></th></tr></thead>
   <tbody>
   {% for ac, seen, last_seen in rows %}
   <tr class="{{ '' if ac.active else 'inactive' }}">
-    <td><a href="/aircraft/{{ ac.id }}"><strong>{{ ac.registration }}</strong></a>{% if seen %} <span class="ok">✓</span>{% endif %}</td>
+    <td data-sort-value="{{ ac.registration }}"><a href="/aircraft/{{ ac.id }}"><strong>{{ ac.registration }}</strong></a>{% if seen %} <span class="ok">✓</span>{% endif %}</td>
     <td>{{ ac.type_icao or "" }} <span class="muted">{{ ac.model or "" }}</span></td>
     <td class="hide-sm">{{ ac.msn or "" }}</td>
     <td class="hide-sm">{{ ac.built or "" }}</td>
     <td>{{ seen or 0 }}</td>
-    <td>{{ last_seen | d(lang) }}</td>
+    <td data-sort-value="{{ last_seen.isoformat() if last_seen else '' }}">{{ last_seen | d(lang) }}</td>
     <td>{% if user.role.value == "admin" %}
       <form method="post" action="/aircraft/{{ ac.id }}/active" class="inline-form">
         <input type="hidden" name="next" value="/airlines/{{ airline.id }}?show={{ show }}">
@@ -33,7 +33,7 @@
     </td>
   </tr>
   {% else %}
-  <tr><td colspan="7" class="muted">{{ t("common.no_data") }}</td></tr>
+  <tr class="no-sort"><td colspan="7" class="muted">{{ t("common.no_data") }}</td></tr>
   {% endfor %}
   </tbody>
 </table>

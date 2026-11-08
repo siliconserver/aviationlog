@@ -3,6 +3,10 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.2.4 (2026-11-08)
+- Aircraft, fleets and airports lists can be sorted by clicking a column header: first click ascending, second click descending, third click back to the default order; a small arrow shows the direction
+- The aircraft list sorts on the server, so the order applies across all pages and stays when you search or change the page; the "Sort" dropdown is replaced by the column headers
+
 ## 0.2.3 (2026-11-08)
 - Photos: "Remove entry" button in the scan review; the folder on the NAS stays and comes back with the next scan
 - Photos: the scan button is now called "Scan archive for new photos"; the buttons explain on mouseover what they do

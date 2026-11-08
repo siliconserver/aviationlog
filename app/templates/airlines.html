@@ -5,14 +5,14 @@
 <p class="muted">{{ t("fleet.intro") }}</p>
 {% if fleets %}
 <div class="table-wrap">
-<table class="data-table clickable-rows">
-  <thead><tr><th>{{ t("field.airline") }}</th><th>IATA</th><th>ICAO</th><th>{{ t("fleet.spotted_active") }}</th><th></th><th class="hide-sm">{{ t("fleet.spotted_total") }}</th></tr></thead>
+<table class="data-table clickable-rows sortable-table">
+  <thead><tr><th data-sort="text">{{ t("field.airline") }}</th><th data-sort="text">IATA</th><th data-sort="text">ICAO</th><th data-sort="num">{{ t("fleet.spotted_active") }}</th><th></th><th class="hide-sm" data-sort="num">{{ t("fleet.spotted_total") }}</th></tr></thead>
   <tbody>
   {% for f in fleets %}
   <tr data-href="/airlines/{{ f.id }}">
     <td><a href="/airlines/{{ f.id }}">{{ f.name }}</a></td>
     <td>{{ f.iata or "" }}</td><td>{{ f.icao or "" }}</td>
-    <td>{{ f.x }} / {{ f.y }} <span class="muted">({{ (100 * f.x / f.y) | round | int if f.y else 0 }} %)</span></td>
+    <td data-sort-value="{{ (f.x / f.y) if f.y else -1 }}">{{ f.x }} / {{ f.y }} <span class="muted">({{ (100 * f.x / f.y) | round | int if f.y else 0 }} %)</span></td>
     <td style="width:25%"><div class="pct-bar"><div style="width: {{ (100 * f.x / f.y) | round if f.y else 0 }}%"></div></div></td>
     <td class="hide-sm">{{ f.spotted_total }}</td>
   </tr>

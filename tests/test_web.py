@@ -312,3 +312,49 @@ def test_viewer_cannot_write(client, db):
     assert client.get("/aircraft").status_code == 200
     assert client.get("/sightings/new").status_code == 403
     assert client.post("/admin/photos/scan").status_code == 403
+
+
+def test_aircraft_list_sort_by_column(client, db):
+    lh = models.Airline(source_key="t-lh", name="Lufthansa")
+    ba = models.Airline(source_key="t-ba", name="British Airways")
+    db.add_all([lh, ba])
+    db.flush()
+    data = [("D-AIAA", "A320", lh, [date(2024, 5, 1)]),
+            ("G-EUAA", "A319", ba, [date(2025, 1, 1), date(2025, 2, 1), date(2025, 3, 1)]),
+            ("D-ABCD", "B738", None, [date(2023, 1, 1), date(2023, 2, 1)])]
+    for reg, typ, airline, dates in data:
+        ac = models.Aircraft(registration=reg, type_icao=typ, airline=airline)
+        db.add(ac)
+        db.flush()
+        db.add_all(models.Sighting(aircraft_id=ac.id, date=d) for d in dates)
+    db.commit()
+
+    def order(url):
+        return re.findall(r"<strong>([A-Z]-[A-Z]+)</strong>", client.get(url).text)
+
+    assert order("/aircraft") == ["G-EUAA", "D-AIAA", "D-ABCD"]  # default: last seen first
+    assert order("/aircraft?sort=registration&dir=asc") == ["D-ABCD", "D-AIAA", "G-EUAA"]
+    assert order("/aircraft?sort=registration&dir=desc") == ["G-EUAA", "D-AIAA", "D-ABCD"]
+    assert order("/aircraft?sort=seen&dir=asc") == ["D-AIAA", "D-ABCD", "G-EUAA"]
+    # without airline at the end in both directions
+    assert order("/aircraft?sort=airline&dir=asc") == ["G-EUAA", "D-AIAA", "D-ABCD"]
+    assert order("/aircraft?sort=airline&dir=desc") == ["D-AIAA", "G-EUAA", "D-ABCD"]
+    assert order("/aircraft?sort=bogus&dir=sideways") == ["G-EUAA", "D-AIAA", "D-ABCD"]
+
+    # header links cycle: ascending -> descending -> no sort
+    def header(url):
+        th = re.search(r'<th class="(sortable[^"]*)"[^>]*><a class="th-sort" href="([^"]+)">Registration', client.get(url).text)
+        return th.group(1).split(), th.group(2).replace("&amp;", "&")
+
+    base = "/aircraft?q=&field=all&scope=collection"
+    assert header("/aircraft") == (["sortable"], base + "&sort=registration&dir=asc")
+    assert header("/aircraft?sort=registration&dir=asc") == (["sortable", "sort-asc"], base + "&sort=registration&dir=desc")
+    assert header("/aircraft?sort=registration&dir=desc") == (["sortable", "sort-desc"], base)
+
+
+def test_lists_are_sortable(client, db):
+    import_all(db)
+    for url in ["/airlines", "/airports", "/airports?q=MUC"]:
+        assert "sortable-table" in client.get(url).text, url
+    airline = db.query(models.Airline).first()
+    assert "sortable-table" in client.get(f"/airlines/{airline.id}").text
