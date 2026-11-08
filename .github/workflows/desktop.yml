@@ -89,6 +89,25 @@ jobs:
             Where-Object { $_.ProviderName -match '.NET Runtime|Application Error|WebView' } |
             Format-List TimeCreated, ProviderName, Message
 
+      - name: Diagnose the app window (Linux)
+        if: failure() && matrix.target == 'linux'
+        run: |
+          set +e
+          try() {
+            echo "::group::$1"
+            home=$(mktemp -d); echo '{"port": 18192}' > "$home/config.json"
+            shift
+            env AVIATIONLOG_HOME="$home" PYWEBVIEW_LOG=debug G_MESSAGES_DEBUG=all timeout 120 xvfb-run -a "$@" 2>&1 | grep -v "^\s*$" | tail -60
+            echo "exit: ${PIPESTATUS[0]}"
+            tail -20 "$home/logs/aviationlog.log"
+            echo "::endgroup::"
+          }
+          PG=$(python -c "import pgserver, os; print(os.path.join(os.path.dirname(pgserver.__file__), 'pginstall'))")
+          try "unfrozen" env AVIATIONLOG_PG_DIR="$PG" python desktop/aviationlog_desktop.py --self-test
+          try "frozen, no sandbox" env WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS=1 dist/AviationLog/AviationLog --self-test
+          try "frozen, no compositing" env WEBKIT_DISABLE_COMPOSITING_MODE=1 dist/AviationLog/AviationLog --self-test
+          ls /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1/
+
       - name: Check the Debian package
         if: matrix.target == 'linux'
         run: |
