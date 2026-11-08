@@ -14,6 +14,7 @@
   <a class="btn" href="/sightings/new?reg={{ ac.registration | urlencode }}">+ {{ t("nav.new_sighting") }}</a>
   <a class="btn-secondary" href="/aircraft/{{ ac.id }}/edit">{{ t("common.edit") }}</a>
   <form method="post" action="/aircraft/{{ ac.id }}/active" class="inline-form"><button class="btn-secondary">{{ t("aircraft.mark_inactive") if ac.active else t("aircraft.mark_active") }}</button></form>
+  {% if adsbdb_enabled and not ac.reg_unknown %}<form method="post" action="/aircraft/{{ ac.id }}/lookup" class="inline-form"><button class="btn-secondary" title="{{ t('adsbdb.button_hint') }}">{{ t("adsbdb.button") }}</button></form>{% endif %}
 </div>
 {% endif %}
 

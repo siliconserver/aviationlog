@@ -15,6 +15,7 @@
 {{ m.job_status(job or last_job) }}
 
 {% for key, src in sources.items() %}
+{% if not src.lookup or adsbdb_enabled %}
 {% set b = batches.get(key) %}
 <section class="panel">
   <h2>{{ src.label }} <span class="count">{{ t("entity." ~ src.entity) }}</span></h2>
@@ -27,6 +28,16 @@
   </p>
   {% if b.status == "ready" %}<p><a class="btn" href="/admin/data/batch/{{ b.id }}">{{ t("data.review") }} →</a></p>{% endif %}
   {% endif %}
+  {% if src.lookup %}
+  <p class="muted">{{ t("adsbdb.intro") }}</p>
+  <div class="actions">
+    <form method="post" action="/admin/data/{{ key }}/download" class="inline-form"><button class="btn-secondary" {{ "disabled" if job or not adsbdb_count }} title="{{ t('adsbdb.lookup_all_hint') }}">{{ t("adsbdb.lookup_all", count=adsbdb_count) }}</button></form>
+    <form method="post" action="/admin/data/adsbdb/auto" class="inline-form">
+      <label><input type="checkbox" name="auto" {{ "checked" if adsbdb_auto }} onchange="this.form.submit()"> {{ t("adsbdb.auto") }}</label>
+      <noscript><button class="btn-secondary btn-sm">{{ t("common.save") }}</button></noscript>
+    </form>
+  </div>
+  {% else %}
   <div class="actions">
     <form method="post" action="/admin/data/{{ key }}/download" class="inline-form"><button class="btn-secondary" {{ "disabled" if job }}>{{ t("data.download") }}</button></form>
     <form method="post" action="/admin/data/{{ key }}/upload" enctype="multipart/form-data" class="inline-form backup-actions">
@@ -34,6 +45,8 @@
       <button class="btn-secondary" {{ "disabled" if job }}>{{ t("data.upload") }}</button>
     </form>
   </div>
+  {% endif %}
 </section>
+{% endif %}
 {% endfor %}
 {% endblock %}

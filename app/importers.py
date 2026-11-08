@@ -76,6 +76,13 @@ SOURCES = {
         "url_env": "DOC8643_URL",
         "url": "https://opensky-network.org/datasets/metadata/doc8643AircraftTypes.csv",
     },
+    "adsbdb": {
+        "entity": "aircraft",
+        "label": "adsbdb.com",
+        "info": "https://www.adsbdb.com/",
+        "license": "free public API, aircraft data courtesy of PlaneBase",
+        "lookup": True,  # no file: looks up every aircraft of the collection (see adsbdb.py)
+    },
 }
 
 # entity -> (model, key column, comparable fields)
@@ -156,6 +163,8 @@ def _open_text(path: Path):
 
 def source_url(source: str) -> str:
     cfg = SOURCES[source]
+    if cfg.get("lookup"):
+        raise ValueError(f"{source} has no download")
     env = os.environ.get(cfg["url_env"])
     if env:
         return env
@@ -580,7 +589,7 @@ def apply_batch(db, batch: models.ImportBatch, job_id: int | None = None) -> dic
                 values[key_col] = row.key
                 values["manual_fields"] = sorted((row.edited or {}).keys())
                 if entity == "aircraft":
-                    values["source"] = "opensky"
+                    values["source"] = batch.source
                     values.setdefault("active", True)
                 if entity == "airport" and not values.get("name"):
                     values["name"] = row.key
@@ -646,12 +655,19 @@ def link_airlines(db):
 def job_prepare(db, job):
     source = job.params["source"]
     entity = SOURCES[source]["entity"]
-    path = job.params.get("file")
-    if path:
-        path = Path(path)
+    rows = None
+    if SOURCES[source].get("lookup"):
+        import adsbdb
+
+        rows = adsbdb.collect_rows(db, job.id)
     else:
-        jobs.progress(job.id, 0, 0, "download")
-        path = download(source, job.id)
+        path = job.params.get("file")
+        if path:
+            path = Path(path)
+        else:
+            jobs.progress(job.id, 0, 0, "download")
+            path = download(source, job.id)
+        rows = PARSERS[source](path)
 
     # only one open review per source
     for old in db.query(models.ImportBatch).filter(
@@ -663,8 +679,8 @@ def job_prepare(db, job):
     db.add(batch)
     db.commit()
     try:
-        staged = stage(batch.id, entity, PARSERS[source](path), job.id)
-        if staged == 0:
+        staged = stage(batch.id, entity, rows, job.id)
+        if staged == 0 and not SOURCES[source].get("lookup"):
             raise ValueError("no usable rows found in file")
         stats = diff(db, batch.id, entity, job.id)
         stats["rows"] = staged
