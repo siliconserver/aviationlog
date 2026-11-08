@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Stre
 from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+import adsbdb
 import models
 import photos
 import queries
@@ -119,7 +120,8 @@ def aircraft_detail(aircraft_id: int, request: Request, user=Depends(get_user), 
             .order_by(models.Aircraft.registration)
             .all()
         )
-    return render(request, "aircraft_detail.html", {"ac": ac, "same_msn": same_msn})
+    return render(request, "aircraft_detail.html", {"ac": ac, "same_msn": same_msn,
+                                                    "adsbdb_enabled": adsbdb.enabled()})
 
 
 def _resolve_airline(db, value: str):
@@ -181,6 +183,9 @@ async def aircraft_edit(aircraft_id: int, request: Request, user=Depends(get_adm
             return _redirect(f"/aircraft/{ac.id}/edit")
         db.flush()
         ac = scan.set_registration(db, ac, new_reg)
+        db.commit()
+        if not ac.reg_unknown and ac.source in ("manual", "scan"):
+            adsbdb.lookup_new(db, [ac.id])
     db.commit()
     flash(request, "saved")
     return _redirect(f"/aircraft/{ac.id}")
@@ -195,6 +200,29 @@ def aircraft_toggle_active(aircraft_id: int, request: Request, next: str = Form(
     ac.active = not ac.active
     db.commit()
     return _redirect(next if next.startswith("/") else f"/aircraft/{ac.id}")
+
+
+@router.post("/aircraft/{aircraft_id}/lookup")
+def aircraft_lookup(aircraft_id: int, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
+    ac = db.get(models.Aircraft, aircraft_id)
+    if not ac:
+        raise HTTPException(404)
+    if ac.reg_unknown or not adsbdb.enabled():
+        return _redirect(f"/aircraft/{ac.id}")
+    try:
+        changed = adsbdb.refresh(db, ac)
+    except adsbdb.AdsbdbError as exc:
+        db.rollback()
+        flash(request, "adsbdb_error", error=str(exc))
+        return _redirect(f"/aircraft/{ac.id}")
+    if changed is None:
+        flash(request, "adsbdb_not_found", registration=ac.registration)
+    elif not changed:
+        flash(request, "adsbdb_unchanged")
+    else:
+        names = ", ".join(t(request, f"field.{f}") for f in changed)
+        flash(request, "adsbdb_updated", fields=names)
+    return _redirect(f"/aircraft/{ac.id}")
 
 
 @router.post("/aircraft/{aircraft_id}/delete")
@@ -286,6 +314,7 @@ async def sighting_new(request: Request, user=Depends(get_admin), db: Session = 
     day = day or date.today()
 
     ac = None if reg_unknown else scan.find_aircraft(db, reg)
+    created = not ac and not reg_unknown
     if not ac:
         if reg_unknown:
             ac = scan.create_unknown_aircraft(db)
@@ -321,6 +350,8 @@ async def sighting_new(request: Request, user=Depends(get_admin), db: Session = 
     db.refresh(sighting)
     count = _store_files(db, sighting, files)
     db.commit()
+    if created:
+        adsbdb.lookup_new(db, [ac.id])
     flash(request, "sighting_created", count=count)
     return _redirect(f"/aircraft/{ac.id}#s{sighting.id}")
 
@@ -689,6 +720,7 @@ async def fleet_aircraft_new(airline_id: int, request: Request, user=Depends(get
             ac.manual_fields.append(field)
     db.add(ac)
     db.commit()
+    adsbdb.lookup_new(db, [ac.id])
     flash(request, "aircraft_added", registration=ac.registration)
     return _redirect(f"/airlines/{airline.id}")
 

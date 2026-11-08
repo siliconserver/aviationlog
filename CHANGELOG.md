@@ -3,6 +3,11 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.6 (2026-11-08)
+- Aircraft data from adsbdb.com (free, no key): "Load data" on an aircraft page looks up the registration and fills in type, manufacturer, Mode S code and operator. Fields you changed yourself (✎) stay; model and manufacturer are only filled when empty
+- New aircraft from the sighting form, the fleet page and the photo scan are looked up automatically in the background (can be switched off in Admin → Master data)
+- Admin → Master data: "Look up all aircraft of the collection" asks adsbdb for every spotted aircraft and every aircraft added by hand; the result is shown for review like an import
+
 ## 0.5 (2026-11-08)
 - Airlines and airports can be edited (name, IATA and ICAO code, country and more; airports also type, city and coordinates). Changed fields are marked with ✎ and kept by every import, like for aircraft
 - New airlines and airports can be added by hand, e.g. ones missing from the master data or ones you want to spot. If it has an ICAO code, the next import merges it with the matching entry and keeps your values; sightings, spotting locations and aircraft move along

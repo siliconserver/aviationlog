@@ -410,6 +410,7 @@ def job_scan_apply(db, job):
     )
     total = sum(len(e.files) for e in entries)
     done = added = skipped = 0
+    before = db.query(func.max(models.Aircraft.id)).scalar() or 0
     for entry in entries:
         n = apply_entry(db, entry)
         if entry.applied:
@@ -419,6 +420,12 @@ def job_scan_apply(db, job):
         db.commit()
         done += len(entry.files)
         jobs.progress(job.id, done, total, "apply")
+    # aircraft the scan created: complete them from adsbdb in the background
+    import adsbdb
+
+    created = [i for (i,) in db.query(models.Aircraft.id).filter(
+        models.Aircraft.id > before, models.Aircraft.source == "scan", models.Aircraft.reg_unknown.is_(False))]
+    adsbdb.lookup_new(db, created)
     return {"photos": added, "skipped": skipped}
 
 

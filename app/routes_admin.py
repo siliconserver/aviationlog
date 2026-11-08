@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+import adsbdb
 import backup
 import emailer
 import importers
@@ -46,12 +47,25 @@ def data_page(request: Request, user=Depends(get_admin), db: Session = Depends(g
         "job": jobs.running(db, IMPORT_JOBS),
         "last_job": db.query(models.Job).filter(models.Job.kind.in_(IMPORT_JOBS))
         .order_by(models.Job.id.desc()).first(),
+        "adsbdb_enabled": adsbdb.enabled(),
+        "adsbdb_auto": adsbdb.auto_enabled(db),
+        "adsbdb_count": adsbdb.collection_query(db).count() if adsbdb.enabled() else 0,
     })
+
+
+@router.post("/data/adsbdb/auto")
+def data_adsbdb_auto(request: Request, auto: str = Form(""), user=Depends(get_admin),
+                     db: Session = Depends(get_db)):
+    settings_store.set(db, adsbdb.SETTING_AUTO, "1" if auto == "on" else "0")
+    flash(request, "saved")
+    return _redirect("/admin/data")
 
 
 @router.post("/data/{source}/download")
 def data_download(source: str, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
     if source not in importers.SOURCES:
+        raise HTTPException(404)
+    if importers.SOURCES[source].get("lookup") and not adsbdb.enabled():
         raise HTTPException(404)
     if jobs.running(db, IMPORT_JOBS):
         flash(request, "job_running")
@@ -64,7 +78,7 @@ def data_download(source: str, request: Request, user=Depends(get_admin), db: Se
 @router.post("/data/{source}/upload")
 def data_upload(source: str, request: Request, file: UploadFile = File(...), user=Depends(get_admin),
                 db: Session = Depends(get_db)):
-    if source not in importers.SOURCES:
+    if source not in importers.SOURCES or importers.SOURCES[source].get("lookup"):
         raise HTTPException(404)
     if jobs.running(db, IMPORT_JOBS):
         flash(request, "job_running")
