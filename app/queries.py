@@ -188,8 +188,11 @@ def by_lens(db, limit: int = 10):
     )
 
 
-def fleet_completion(db, limit: int | None = None):
-    """Per airline: spotted active aircraft (X) of all active aircraft (Y)."""
+def fleet_completion(db, limit: int | None = None, all_airlines: bool = False):
+    """Per airline: spotted active aircraft (X) of all active aircraft (Y).
+
+    By default only airlines with at least one spotted aircraft; ``all_airlines`` lists every airline.
+    """
     spotted = case((A.id.in_(spotted_ids), 1), else_=0)
     q = (
         db.query(
@@ -197,15 +200,17 @@ def fleet_completion(db, limit: int | None = None):
             models.Airline.name,
             models.Airline.iata,
             models.Airline.icao,
-            func.sum(case((and_(A.active.is_(True), A.id.in_(spotted_ids)), 1), else_=0)).label("x"),
-            func.sum(case((A.active.is_(True), 1), else_=0)).label("y"),
-            func.sum(spotted).label("spotted_total"),
+            func.coalesce(func.sum(case((and_(A.active.is_(True), A.id.in_(spotted_ids)), 1), else_=0)), 0)
+            .label("x"),
+            func.coalesce(func.sum(case((A.active.is_(True), 1), else_=0)), 0).label("y"),
+            func.coalesce(func.sum(spotted), 0).label("spotted_total"),
         )
-        .join(A, and_(A.airline_id == models.Airline.id, A.reg_unknown.is_(False)))
+        .outerjoin(A, and_(A.airline_id == models.Airline.id, A.reg_unknown.is_(False)))
         .group_by(models.Airline.id)
-        .having(func.sum(spotted) > 0)
-        .order_by(func.sum(spotted).desc(), models.Airline.name)
+        .order_by(func.coalesce(func.sum(spotted), 0).desc(), models.Airline.name)
     )
+    if not all_airlines:
+        q = q.having(func.sum(spotted) > 0)
     if limit:
         q = q.limit(limit)
     return q.all()

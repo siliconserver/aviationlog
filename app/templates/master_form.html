@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% set base = "/airlines" if kind == "airline" else "/airports" %}
+{% set manual = (obj.manual_fields or []) if obj else [] %}
+{% block title %}{{ obj.name if obj else t("master.new_" ~ kind) }}{% endblock %}
+{% block content %}
+<h1>{% if obj %}{{ t("common.edit") }}: {{ obj.name }}{% else %}{{ t("master.new_" ~ kind) }}{% endif %}</h1>
+<p class="muted">{{ t("master.edit_hint") if obj else t("master.new_hint_" ~ kind) }}</p>
+{% for e in errors %}<div class="alert alert-error">{{ e }}</div>{% endfor %}
+{% if duplicate %}<div class="alert alert-error">{{ t("master.duplicate_" ~ kind, code=duplicate.icao) }}
+  <a href="{{ base }}/{{ duplicate.id }}">{{ duplicate.name }}</a></div>{% endif %}
+<form method="post" action="{{ base }}/{{ obj.id ~ '/edit' if obj else 'new' }}" class="form-grid">
+  {% for f in fields %}
+  {% set value = values[f] if values is not none and f in values else (obj[f] if obj else none) %}
+  <label{% if f == "name" %} class="full"{% endif %}>{{ t("field." ~ f) }}{% if f in manual %} <span class="manual" title="{{ t('aircraft.manual_hint') }}">✎</span>{% endif %}
+    {% if f == "type" %}
+    <select name="type">
+      <option value="">–</option>
+      {% for ty in airport_types %}<option value="{{ ty }}" {{ "selected" if value == ty }}>{{ t("airport.type_" ~ ty) }}</option>{% endfor %}
+    </select>
+    {% else %}
+    <input type="text" name="{{ f }}" value="{{ value if value is not none else '' }}"
+      {% if f == "name" %}required{% endif %}
+      {% if f in ("iata", "icao") %}style="text-transform: uppercase" placeholder="{{ t('master.placeholder_' ~ kind ~ '_' ~ f) }}"{% endif %}
+      {% if f in ("lat", "lon") %}inputmode="decimal" placeholder="{{ '48.353783' if f == 'lat' else '11.786086' }}"{% endif %}
+      {% if f == "country" and kind == "airport" %}placeholder="DE" style="text-transform: uppercase"{% endif %}>
+    {% endif %}
+  </label>
+  {% endfor %}
+  {% if kind == "airline" %}
+  {% set active = values["active"] if values is not none and "active" in values else (obj.active if obj else true) %}
+  <label class="checkbox"><input type="checkbox" name="active" {{ "checked" if active }}> {{ t("aircraft.active") }}</label>
+  {% endif %}
+  {% if manual %}
+  <div class="full">
+    <span class="label">{{ t("aircraft.unlock") }}</span>
+    <p class="hint" style="margin-top:0.3rem">{{ t("aircraft.unlock_hint") }}</p>
+    {% for f in manual %}<label class="checkbox"><input type="checkbox" name="unlock" value="{{ f }}"> {{ t("field." ~ f) }}</label>{% endfor %}
+  </div>
+  {% endif %}
+  <div class="full actions">
+    <button class="btn">{{ t("common.save") }}</button>
+    <a class="btn-secondary" href="{{ base }}{{ '/' ~ obj.id if obj }}">{{ t("common.cancel") }}</a>
+  </div>
+</form>
+{% if obj %}
+<section class="panel" style="margin-top:1.2rem">
+  <h2>{{ t("common.delete") }}</h2>
+  {% if deletable %}
+  <p class="muted">{{ t("master.delete_hint_" ~ kind) }}</p>
+  <form method="post" action="{{ base }}/{{ obj.id }}/delete" class="inline-form" data-confirm="{{ t('master.delete_confirm', name=obj.name) }}">
+    <button class="btn btn-danger">{{ t("master.delete_" ~ kind) }}</button>
+  </form>
+  {% else %}
+  <p class="muted">{{ t("master.delete_blocked") }}</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

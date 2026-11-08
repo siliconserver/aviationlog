@@ -2,6 +2,9 @@
 {% block title %}{{ t("nav.airports") }}{% endblock %}
 {% block content %}
 <h1>{{ t("nav.airports") }}</h1>
+{% if user.role.value == "admin" %}
+<div class="actions" style="margin-top:0; margin-bottom:1rem"><a class="btn" href="/airports/new">+ {{ t("master.new_airport") }}</a></div>
+{% endif %}
 <form method="get" class="search-bar">
   <label>{{ t("airport.search") }}<input type="text" name="q" value="{{ q }}" placeholder="MUC, EDDM, Munich …"></label>
   <div class="actions"><button class="btn">{{ t("search.submit") }}</button></div>

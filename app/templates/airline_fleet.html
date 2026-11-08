@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 {% block title %}{{ airline.name }}{% endblock %}
 {% block content %}
-<h1>{{ airline.name }} <span class="muted">{{ airline.iata or "–" }} / {{ airline.icao or "–" }}</span></h1>
+<h1>{{ airline.name }} <span class="muted">{{ airline.iata or "–" }} / {{ airline.icao or "–" }}</span>
+  {% if airline.manual_fields %}<span class="manual" title="{{ t('aircraft.manual_hint') }}">✎</span>{% endif %}
+  {% if not airline.active %}<span class="badge badge-muted nok">{{ t("aircraft.inactive") }}</span>{% endif %}</h1>
+{% if user.role.value == "admin" %}
+<div class="actions" style="margin-top:0; margin-bottom:1rem">
+  <a class="btn" href="/airlines/{{ airline.id }}/aircraft/new">+ {{ t("fleet.add_aircraft") }}</a>
+  <a class="btn-secondary" href="/airlines/{{ airline.id }}/edit">{{ t("common.edit") }}</a>
+</div>
+{% endif %}
 <div class="stat-grid">
   <div class="stat-card"><div class="stat-value">{{ x }} / {{ y }}</div><div class="stat-label">{{ t("fleet.spotted_active") }}</div></div>
   <div class="stat-card"><div class="stat-value">{{ (100 * x / y) | round | int if y else 0 }} %</div><div class="stat-label">{{ t("fleet.completion") }}</div></div>
