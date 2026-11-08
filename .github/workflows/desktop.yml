@@ -99,6 +99,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
+          # only the desktop builds; the release run also holds other artifacts (Docker build record)
+          pattern: aviationlog-*
           path: files
           merge-multiple: true
 
