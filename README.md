@@ -1,6 +1,6 @@
 # AviationLog
 
-Self-hosted web app for plane spotters: log the aircraft you photographed, find them again by any detail, see how much of each airline's fleet you already have, and keep your spotting locations on a map.
+Self-hosted web app for plane spotters, also available as a [desktop app](#desktop-app) for Windows, macOS and Debian: log the aircraft you photographed, find them again by any detail, see how much of each airline's fleet you already have, and keep your spotting locations on a map.
 
 You only enter **registration, date and airport**. Type, airline, MSN, build year, engines and more come from the built-in master data, imported from free public sources.
 
@@ -42,6 +42,30 @@ docker compose pull && docker compose up -d
 ```
 
 `AVIATIONLOG_TAG` in `.env` selects the image: `latest` (newest release), `main` (current main branch) or a fixed version such as `0.1`.
+
+## Desktop app
+
+For a single computer without Docker there are ready-made apps for **Windows** (64 bit), **macOS** (Apple silicon) and **Debian/Ubuntu** (amd64). Download them from the assets of the newest [release](https://github.com/siliconserver/aviationlog/releases/latest):
+
+| System | File | Install |
+| --- | --- | --- |
+| Windows 10/11 | `AviationLog-<version>-windows-x64-setup.exe` | Run the installer (no administrator rights needed). Windows SmartScreen may warn because the app is not signed: *More info → Run anyway*. |
+| macOS 12 or newer, Apple silicon | `AviationLog-<version>-macos-arm64.dmg` | Drag AviationLog into *Applications*. The app is not notarized by Apple: on the first start right-click it and choose *Open*, or allow it under *System Settings → Privacy & Security*. |
+| Debian 12+, Ubuntu 22.04+ | `aviationlog_<version>_amd64.deb` | `sudo apt install ./aviationlog_<version>_amd64.deb`, then start AviationLog from the app menu or with `aviationlog`. |
+
+The desktop app is the same AviationLog with its own PostgreSQL database built in. Starting it opens a small window and AviationLog in the browser at `http://127.0.0.1:18090`; it is only reachable from this computer. Closing the window stops AviationLog and the database.
+
+- **First login**: the window shows the user `admin` and a generated start password. Change it under *Profile*.
+- **Photos**: by default photos are uploaded with each sighting and stored in the data folder. With *Use photo archive …* you pick an existing archive folder in the [folder scheme](#folder-scheme); it is only read and scanned (like `nas` mode), never changed.
+- **Data folder** (database, backups, thumbnails, uploaded photos, settings, logs):
+  - Windows: `%LOCALAPPDATA%\AviationLog`
+  - macOS: `~/Library/Application Support/AviationLog`
+  - Linux: `~/.local/share/aviationlog`
+
+  Uninstalling the app keeps this folder. Back it up regularly; to move to another computer copy the whole folder.
+- **Settings** are in `config.json` in the data folder: `port`, `language` (`en`/`de`), `open_browser`, `photo_mode`/`photo_dir` and optionally `smtp` (e.g. `{"host": "smtp.example.com", "port": 587, "user": "…", "password": "…", "from": "…"}`). Restart the app after changing it.
+- Backups of the server version can be restored in the desktop app and the other way round (*Admin → Backups → Upload*).
+- Without a desktop (e.g. over SSH) start it with `aviationlog --headless`; Ctrl+C stops it.
 
 ## Photo modes
 
@@ -150,7 +174,9 @@ cd app && uvicorn main:app --reload
 
 Tests: `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/aviationlog_test pytest tests` (the test database is wiped).
 
-Releases: add a new version at the top of [CHANGELOG.md](CHANGELOG.md). When it lands on `main`, GitHub Actions creates the tag and release and pushes the image `ghcr.io/siliconserver/aviationlog:<version>` and `:latest` (amd64 and arm64).
+Releases: add a new version at the top of [CHANGELOG.md](CHANGELOG.md). When it lands on `main`, GitHub Actions creates the tag and release, pushes the image `ghcr.io/siliconserver/aviationlog:<version>` and `:latest` (amd64 and arm64) and attaches the desktop apps for Windows, macOS and Debian to the release.
+
+Desktop apps: `pip install -r requirements.txt -r desktop/requirements.txt && python desktop/build.py` builds the package for the system you run it on (Windows needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)). The PostgreSQL 16 that is bundled comes from the [pgserver](https://github.com/orm011/pgserver) package. To try the launcher without building: `python desktop/aviationlog_desktop.py`.
 
 ## License
 

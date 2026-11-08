@@ -98,12 +98,15 @@ def migrate():
     """create_all does not add columns to existing tables; add them here when needed."""
     Base.metadata.create_all(bind=engine)
     with engine.begin() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         conn.execute(text("ALTER TABLE aircraft ADD COLUMN IF NOT EXISTS reg_unknown boolean NOT NULL DEFAULT false"))
-        conn.execute(text(
-            "CREATE INDEX IF NOT EXISTS ix_aircraft_registration_trgm ON aircraft "
-            "USING gin (registration gin_trgm_ops)"
-        ))
+        # pg_trgm only speeds up the registration search. The PostgreSQL bundled with the
+        # desktop apps does not ship it, so the index is skipped there.
+        if conn.execute(text("SELECT 1 FROM pg_available_extensions WHERE name = 'pg_trgm'")).first():
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_aircraft_registration_trgm ON aircraft "
+                "USING gin (registration gin_trgm_ops)"
+            ))
 
 
 def startup():

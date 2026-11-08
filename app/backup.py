@@ -8,6 +8,9 @@ from pathlib import Path
 
 logger = logging.getLogger("backup")
 
+# Desktop app on Windows: keep pg_dump / psql from opening a console window.
+_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 BACKUP_DIR = Path(os.environ.get("BACKUP_DIR", "/data/backups"))
 BACKUP_PREFIX = "aviationlog_backup_"
 
@@ -48,7 +51,7 @@ def run_backup(retention: int = 14) -> str:
         "-f",
         str(sql_path),
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, creationflags=_NO_WINDOW)
     if result.returncode != 0:
         raise RuntimeError(f"pg_dump failed: {result.stderr}")
 
@@ -82,7 +85,7 @@ def restore_backup(filename: str):
 
     try:
         cmd = ["psql", _database_url(), "-f", str(sql_path)]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, creationflags=_NO_WINDOW)
         if result.returncode != 0:
             raise RuntimeError(f"Restore failed: {result.stderr}")
     finally:

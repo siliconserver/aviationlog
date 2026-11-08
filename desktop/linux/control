@@ -1,0 +1,13 @@
+Package: aviationlog
+Version: @VERSION@
+Architecture: @ARCH@
+Maintainer: siliconserver <39447357+siliconserver@users.noreply.github.com>
+Installed-Size: @SIZE@
+Depends: libc6 (>= 2.35), libx11-6, xdg-utils
+Section: graphics
+Priority: optional
+Homepage: https://github.com/siliconserver/aviationlog
+Description: Plane spotting log as a desktop app
+ Log the aircraft you photographed, find them again by any detail and see how
+ much of each airline's fleet you already have. Runs AviationLog with its own
+ PostgreSQL database on this computer and opens it in the browser.
