@@ -5,6 +5,7 @@
   <img src="/static/logo.png" alt="AviationLog" class="login-logo">
   <h1 class="sr-only">AviationLog</h1>
   {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  {% if start_login %}<div class="alert alert-info">{{ t("login.desktop_start", username=start_login.username, password=start_login.password) }}</div>{% endif %}
   <form method="post" action="/login">
     <label>{{ t("login.username") }}
       <input type="text" name="username" autocomplete="username" required autofocus>

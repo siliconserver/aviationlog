@@ -50,7 +50,7 @@
       <span>{{ user.username }} <span class="role-badge">{{ t("role." ~ user.role.value) }}</span></span>
       <div class="nav-dropdown-menu">
         <a href="/profile">{{ t("nav.profile") }}</a>
-        <a href="/export.csv">{{ t("nav.export") }}</a>
+        <a href="/export.csv" data-download>{{ t("nav.export") }}</a>
       </div>
     </div>
     <a href="/logout" class="logout">{{ t("nav.logout") }}</a>
@@ -164,6 +164,7 @@ document.querySelectorAll("form[data-confirm]").forEach(function (f) {
   f.addEventListener("submit", function (e) { if (!confirm(f.dataset.confirm)) e.preventDefault(); });
 });
 </script>
+<script src="/static/desktop.js?v={{ APP_VERSION }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -196,6 +196,7 @@
  "login.2fa_title": "Zwei-Faktor-Anmeldung",
  "login.code_invalid": "Code ungültig.",
  "login.confirm": "Bestätigen",
+ "login.desktop_start": "Erste Anmeldung: Benutzer {username}, Passwort {password}. Ändere das Passwort nach dem Anmelden unter Profil, danach verschwindet dieser Hinweis.",
  "login.failed": "Benutzername oder Passwort falsch.",
  "login.forgot": "Passwort vergessen?",
  "login.password": "Passwort",

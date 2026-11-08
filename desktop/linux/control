@@ -3,7 +3,7 @@ Version: @VERSION@
 Architecture: @ARCH@
 Maintainer: siliconserver <39447357+siliconserver@users.noreply.github.com>
 Installed-Size: @SIZE@
-Depends: libc6 (>= 2.35), libx11-6, xdg-utils
+Depends: libc6 (>= 2.35), libgirepository-1.0-1, gir1.2-gtk-3.0, gir1.2-webkit2-4.1, libx11-6, libxft2, libxss1, libfontconfig1, xdg-utils
 Section: graphics
 Priority: optional
 Homepage: https://github.com/siliconserver/aviationlog

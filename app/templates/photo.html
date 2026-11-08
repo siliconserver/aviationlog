@@ -30,9 +30,9 @@
     <p class="muted" style="word-break: break-all">{{ photo.path }}</p>
     {% if not exists %}<p class="nok">{{ t("photo.missing") }}</p>{% endif %}
     <div class="actions">
-      <a class="btn-secondary" href="/photos/{{ photo.id }}/original">{{ t("photo.original") }}</a>
+      <a class="btn-secondary" href="/photos/{{ photo.id }}/original" data-download>{{ t("photo.original") }}</a>
       {% set raw = photo.raw_companion %}
-      {% if raw %}<a class="btn-secondary" href="/photos/{{ raw.id }}/original">{{ t("photo.raw") }}</a>{% endif %}
+      {% if raw %}<a class="btn-secondary" href="/photos/{{ raw.id }}/original" data-download>{{ t("photo.raw") }}</a>{% endif %}
       {% if user.role.value == "admin" %}
       {% if ac.cover_photo_id != photo.id %}<form method="post" action="/photos/{{ photo.id }}/cover" class="inline-form"><button class="btn-secondary">★ {{ t("photo.set_cover") }}</button></form>{% endif %}
       <form method="post" action="/photos/{{ photo.id }}/delete" class="inline-form" data-confirm="{{ t('photo.delete_confirm_' ~ photo_mode) }}"><button class="btn btn-danger">{{ t("common.delete") }}</button></form>

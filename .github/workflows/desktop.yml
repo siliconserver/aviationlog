@@ -49,6 +49,12 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: GTK and WebKitGTK (Linux app window)
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgirepository1.0-dev libcairo2-dev gir1.2-webkit2-4.1 xvfb
+
       - name: Install build tools
         run: python -m pip install -r requirements.txt -r desktop/requirements.txt
 

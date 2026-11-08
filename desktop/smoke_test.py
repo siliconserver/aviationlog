@@ -61,7 +61,27 @@ def main():
             print(log.read_text(encoding="utf-8", errors="replace")[-6000:])
     if not ok:
         sys.exit("Smoke test failed: the app did not answer")
-    print("Smoke test passed")
+    print("Smoke test passed (server)")
+    window_test(exe)
+
+
+def window_test(exe: Path):
+    """The app window (system web view) shows the login page and the JavaScript bridge works."""
+    home = Path(tempfile.mkdtemp(prefix="aviationlog-window-"))
+    (home / "config.json").write_text(json.dumps({"port": 18191}), encoding="utf-8")
+    cmd = [str(exe), "--self-test"]
+    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY"):
+        cmd = ["xvfb-run", "-a"] + cmd
+    result = subprocess.run(cmd, env=dict(os.environ, AVIATIONLOG_HOME=str(home)), timeout=360)
+    stop_leftover_postgres(exe, home)
+    log = home / "logs" / "aviationlog.log"
+    if log.exists():
+        text = log.read_text(encoding="utf-8", errors="replace")
+        print("===== window test log")
+        print(text[-6000:])
+    if result.returncode != 0:
+        sys.exit(f"Window test failed (exit code {result.returncode})")
+    print("Smoke test passed (app window)")
 
 
 if __name__ == "__main__":

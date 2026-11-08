@@ -20,11 +20,30 @@ def _redirect(url: str):
     return RedirectResponse(url, status_code=303)
 
 
+def desktop_start_login(db: Session) -> dict | None:
+    """Desktop app only: user and start password, as long as that password was not changed.
+
+    The desktop app is only reachable from the same computer, and nobody else knows the
+    generated password, so the login page shows it instead of a separate window.
+    """
+    if os.environ.get("AVIATIONLOG_DESKTOP") != "1":
+        return None
+    username = os.environ.get("ADMIN_USERNAME", "admin")
+    password = os.environ.get("ADMIN_PASSWORD")
+    if not password:
+        return None
+    user = db.query(models.User).filter(func.lower(models.User.username) == username.lower()).first()
+    if user and security.verify_password(password, user.password_hash):
+        return {"username": user.username, "password": password}
+    return None
+
+
 @router.get("/login")
 def login_form(request: Request, db: Session = Depends(get_db)):
     if load_user(request, db):
         return _redirect("/")
-    return render(request, "login.html", {"error": None, "smtp": emailer.is_configured()})
+    return render(request, "login.html", {"error": None, "smtp": emailer.is_configured(),
+                                          "start_login": desktop_start_login(db)})
 
 
 @router.post("/login")
@@ -34,7 +53,8 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     user = db.query(models.User).filter(func.lower(models.User.username) == username.strip().lower()).first()
     if not user or not security.verify_password(password, user.password_hash):
         return render(request, "login.html", {"error": t(request, "login.failed"),
-                                              "smtp": emailer.is_configured()}, status_code=401)
+                                              "smtp": emailer.is_configured(),
+                                              "start_login": desktop_start_login(db)}, status_code=401)
     lang = request.session.get("lang")
     request.session.clear()
     if lang:
