@@ -28,11 +28,11 @@ ANSWERS = {
 def fake(monkeypatch):
     calls = []
 
-    def fetch(reg):
+    def fetch(db, reg):
         calls.append(reg)
         return ANSWERS.get(reg)
 
-    monkeypatch.setattr(adsbdb, "enabled", lambda: True)
+    monkeypatch.setattr(adsbdb, "enabled", lambda db=None: True)
     monkeypatch.setattr(adsbdb, "fetch", fetch)
     return calls
 
@@ -51,11 +51,11 @@ def test_fetch_parses_answer(monkeypatch):
         return httpx.Response(404, json={"response": "unknown aircraft"})
 
     monkeypatch.setattr(httpx, "get", get)
-    assert adsbdb.fetch("D-AXYZ")["icao_type"] == "A320"
+    assert adsbdb.fetch(None, "D-AXYZ")["icao_type"] == "A320"
     assert seen[0] == "https://example.invalid/v0/aircraft/D-AXYZ"
-    assert adsbdb.fetch("D-ANONE") is None
+    assert adsbdb.fetch(None, "D-ANONE") is None
     with pytest.raises(adsbdb.AdsbdbError):
-        adsbdb.fetch("BROKEN")
+        adsbdb.fetch(None, "BROKEN")
 
 
 def test_off_by_default_in_tests(client, db):

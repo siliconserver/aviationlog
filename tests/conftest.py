@@ -14,6 +14,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret")
 os.environ.setdefault("ADMIN_PASSWORD", "admin-password")
 os.environ["DISABLE_SCHEDULER"] = "1"
 os.environ["ADSBDB_URL"] = "off"  # no network in tests; test_adsbdb switches it on with a fake answer
+os.environ["AIRPORTDATA_URL"] = "off"  # same for airport-data.com (test_airportdata uses a fake page)
 
 
 @pytest.fixture(scope="session")

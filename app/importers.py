@@ -81,7 +81,14 @@ SOURCES = {
         "label": "adsbdb.com",
         "info": "https://www.adsbdb.com/",
         "license": "free public API, aircraft data courtesy of PlaneBase",
-        "lookup": True,  # no file: looks up every aircraft of the collection (see adsbdb.py)
+        "lookup": "adsbdb",  # no file: looks up every aircraft of the collection (see lookups.py)
+    },
+    "flightera": {
+        "entity": "aircraft",
+        "label": "flightera.net",
+        "info": "https://www.flightera.net/en/data/docs",
+        "license": "flightera data API with your own key, 1 credit per aircraft found",
+        "lookup": "flightera",
     },
 }
 
@@ -91,7 +98,7 @@ ENTITIES = {
         models.Aircraft,
         "registration",
         ["icao24", "msn", "line_number", "type_icao", "model", "manufacturer", "operator_name",
-         "operator_icao", "operator_iata", "built", "first_flight", "engines"],
+         "operator_icao", "operator_iata", "built", "first_flight", "delivery_date", "engines"],
     ),
     "airport": (
         models.Airport,
@@ -557,6 +564,13 @@ def _coerce(entity: str, field: str, value):
         return float(value)
     if field == "active":
         return value if isinstance(value, bool) else str(value).lower() in ("1", "true", "yes", "y", "on")
+    if field == "delivery_date":
+        if isinstance(value, date):
+            return value
+        try:
+            return date.fromisoformat(str(value).strip()[:10])
+        except ValueError:
+            return None
     limit = _MAXLEN.get((entity, field))
     value = str(value).strip()
     return value[:limit] if limit else value
@@ -657,9 +671,9 @@ def job_prepare(db, job):
     entity = SOURCES[source]["entity"]
     rows = None
     if SOURCES[source].get("lookup"):
-        import adsbdb
+        import lookups
 
-        rows = adsbdb.collect_rows(db, job.id)
+        rows = lookups.collect_rows(db, lookups.provider(SOURCES[source]["lookup"]), job.id)
     else:
         path = job.params.get("file")
         if path:
