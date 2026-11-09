@@ -147,14 +147,16 @@ With HTTPS set `SESSION_HTTPS_ONLY=true` and `BASE_URL=https://aviationlog.examp
 
 Delivery date, production site and status (active/inactive) are not available from free sources in good quality. Enter them by hand once per aircraft; they are kept across imports. If the container has no internet access, download the files elsewhere and upload them on the same page. The download URLs can be changed with `OPENSKY_URL`, `OURAIRPORTS_URL`, `OPENFLIGHTS_AIRLINES_URL`, `OPENFLIGHTS_PLANES_URL` and `DOC8643_URL`.
 
-**Lookups by registration.** adsbdb.com and airport-data.com complete single aircraft, e.g. ones that are newer than the OpenSky snapshot. adsbdb has type, manufacturer, Mode S and operator; airport-data.com adds MSN, build year, delivery date and engines (its aircraft page is read and parsed; if a registration was used by several aircraft, the newest one counts). There are three ways to use them:
-- **Info adsbdb** / **Info airport-data** on an aircraft page looks up that registration and applies the result.
-- New aircraft (sighting form, fleet page, photo scan) are looked up automatically in the background. This can be switched off per source in *Admin → Master data*.
-- *Admin → Master data → Look up all aircraft of the collection* asks for every spotted aircraft and every aircraft added by hand or by the scan, one request every 0.5 (adsbdb) or 1 second (airport-data). The result is shown for review like any import.
+**adsbdb.com lookup.** adsbdb completes single aircraft, e.g. ones that are newer than the OpenSky snapshot: type, manufacturer, Mode S and operator. There are three ways to use it:
+- **Info adsbdb** on an aircraft page looks up that registration and applies the result.
+- New aircraft (sighting form, fleet page, photo scan) are looked up automatically in the background. This can be switched off in *Admin → Master data*.
+- *Admin → Master data → Look up all aircraft of the collection* asks for every spotted aircraft and every aircraft added by hand or by the scan, one request every 0.5 seconds. The result is shown for review like any import.
 
-Fields you edited by hand are never changed; model and manufacturer (and for airport-data the operator) are only filled when empty. `ADSBDB_URL=off` / `AIRPORTDATA_URL=off` switch the lookups off; `ADSBDB_DELAY` / `AIRPORTDATA_DELAY` set the pause between two requests in seconds.
+**airport-data.com lookup.** **Info airport-data** on an aircraft page reads the aircraft's page at airport-data.com and fills in MSN, build year, delivery date, engines and Mode S. If a registration was used by several aircraft, the newest one counts. Because these are web pages for people, airport-data.com is only asked on this click, never automatically or for the whole collection.
 
-**flightera.net.** Create a free account, copy the API key from [your account](https://www.flightera.net/en/account/api) and paste it in *Admin → Master data*. **Info flightera** on an aircraft page then fills in Mode S code, current airline and first flight. Every lookup costs 1 credit (1000 a month on the free plan), so flightera is never asked automatically; the remaining credits of the last lookup are shown next to the key. `FLIGHTERA_URL=off` switches it off.
+**flightera.net lookup.** Create a free account, copy the API key from [your account](https://www.flightera.net/en/account/api) and paste it in *Admin → Master data*. **Info flightera** on an aircraft page fills in Mode S code, current airline and first flight; *Look up all aircraft of the collection* in the flightera section does the same for the whole collection with review. Every aircraft found costs 1 credit (1000 a month on the free plan), so flightera is never asked automatically; the collection lookup stops when the credits are used up and keeps what was found. The remaining credits are shown next to the key.
+
+Fields you edited by hand are never changed; model and manufacturer (and for airport-data the operator) are only filled when empty. `ADSBDB_URL=off`, `AIRPORTDATA_URL=off` and `FLIGHTERA_URL=off` switch the lookups off; `ADSBDB_DELAY`, `AIRPORTDATA_DELAY` and `FLIGHTERA_DELAY` set the pause between two requests in seconds.
 
 The OpenSky aircraft database is unlicensed and does not fall under OpenSky's terms of use; it comes without support or guarantees of any kind. If you use OpenSky Network data in a publication (including web pages, research papers or public presentations), OpenSky asks you to cite:
 

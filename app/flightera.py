@@ -1,8 +1,9 @@
 """Aircraft lookup by registration via the flightera.net data API (needs an API key).
 
 ``GET /aircraft/info?reg=`` costs 1 credit; a free account has 1000 credits a month.
-That is why flightera is only asked on a click ("Info flightera" on an aircraft), never
-automatically or for the whole collection. Errors (HTTP 400 and higher) cost nothing.
+That is why flightera is never asked automatically: only on a click ("Info flightera" on an
+aircraft) or for the whole collection in Admin -> Master data. Errors (HTTP 400 and higher)
+cost nothing. Without credits or with a wrong key the collection lookup stops at once.
 
 It returns the Mode-S code, manufacturer, model, the current airline and the first flight.
 The key is entered on the master data page and stored in the settings table.
@@ -27,6 +28,8 @@ SETTING_BALANCE_AT = "flightera_balance_at"
 FILL_ONLY = {"model", "manufacturer"}
 # error codes of the API that have their own message
 ERROR_CODES = {"quota_exceeded", "invalid_key", "rate_limited", "your_limit_exceeded", "no_key"}
+# errors after which further requests are pointless
+FATAL = {"quota_exceeded", "invalid_key", "your_limit_exceeded", "no_key"}
 
 
 class FlighteraError(lookups.LookupError):
@@ -35,6 +38,7 @@ class FlighteraError(lookups.LookupError):
     def __init__(self, message: str, code: str = ""):
         super().__init__(message)
         self.code = code
+        self.fatal = code in FATAL
 
 
 def base_url() -> str:
@@ -54,6 +58,16 @@ def enabled(db=None) -> bool:
 
 def auto_enabled(db) -> bool:
     return False  # every call costs a credit: only on a click
+
+
+def _delay() -> float:
+    try:
+        return float(os.environ.get("FLIGHTERA_DELAY", "0.25"))
+    except ValueError:
+        return 0.25
+
+
+_throttle = lookups.Throttle(_delay)  # the free plan allows 5 requests per second
 
 
 def balance(db) -> tuple[str, str]:
@@ -78,6 +92,7 @@ def fetch(db, registration: str) -> dict | None:
         raise FlighteraError("no API key", "no_key")
     url = f"{base_url()}/aircraft/info?reg={quote(registration, safe='')}"
     for attempt in range(3):
+        _throttle.wait()
         try:
             resp = httpx.get(url, timeout=20, headers={"X-Api-Key": key, "User-Agent": lookups.USER_AGENT})
         except httpx.HTTPError as exc:

@@ -83,12 +83,12 @@ SOURCES = {
         "license": "free public API, aircraft data courtesy of PlaneBase",
         "lookup": "adsbdb",  # no file: looks up every aircraft of the collection (see lookups.py)
     },
-    "airportdata": {
+    "flightera": {
         "entity": "aircraft",
-        "label": "airport-data.com",
-        "info": "https://airport-data.com/",
-        "license": "aircraft profile pages of airport-data.com, read one by one",
-        "lookup": "airportdata",
+        "label": "flightera.net",
+        "info": "https://www.flightera.net/en/data/docs",
+        "license": "flightera data API with your own key, 1 credit per aircraft found",
+        "lookup": "flightera",
     },
 }
 

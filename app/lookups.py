@@ -90,7 +90,9 @@ def record(db, prov, ac: models.Aircraft, info: dict) -> dict:
     return {k: v for k, v in out.items() if v is not None}
 
 
-def _same(old, new) -> bool:
+def _same(old, new, field: str = "") -> bool:
+    if field == "msn" and old and new and str(old).lstrip("0") == str(new).lstrip("0"):
+        return True  # "09555" and "9555" are the same MSN
     if hasattr(old, "isoformat"):
         old = old.isoformat()
     if hasattr(new, "isoformat"):
@@ -104,7 +106,7 @@ def changes(db, prov, ac: models.Aircraft, info: dict) -> dict:
     return {
         field: value
         for field, value in record(db, prov, ac, info).items()
-        if field not in manual and not _same(getattr(ac, field), value)
+        if field not in manual and not _same(getattr(ac, field), value, field)
     }
 
 
@@ -185,6 +187,13 @@ def collect_rows(db, prov, job_id: int | None = None):
         except LookupError as exc:
             failed += 1
             logger.warning("%s lookup of %s failed: %s", prov.KEY, ac.registration, exc)
+            if getattr(exc, "fatal", False):
+                # e.g. no credits left: keep what was found so far, unless nothing was
+                if found == 0:
+                    raise
+                if job_id:
+                    jobs.progress(job_id, total, total, "lookup")
+                return
             if failed >= 10 and found == 0:
                 raise LookupError(f"{prov.LABEL} not reachable: {exc}") from exc
             info = None

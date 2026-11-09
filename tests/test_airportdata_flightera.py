@@ -130,32 +130,19 @@ def test_button_fills_gaps_and_keeps_manual(client, db, site):
     assert ac.model == "A320neo" and ac.operator_name == "Eurowings"  # only filled when empty
     r = client.post(f"/aircraft/{ac.id}/lookup/airportdata")
     assert "keine neuen Daten" in r.text or "no new data" in r.text
+    ac.msn = "09555"  # same MSN with a leading zero (OpenSky style) is not changed
+    db.commit()
+    r = client.post(f"/aircraft/{ac.id}/lookup/airportdata")
+    assert "keine neuen Daten" in r.text or "no new data" in r.text
 
 
-def test_auto_lookup_and_collection(client, db, site):
+def test_airportdata_only_on_click(client, db, site):
     client.post("/sightings/new", data={"registration": "D-AIJA", "date": "2026-11-01"})
     lookups.wait_idle()
-    db.expire_all()
-    ac = db.query(models.Aircraft).filter_by(registration="D-AIJA").one()
-    assert ac.msn == "9555" and ac.delivery_date == date(2020, 9, 24)
-
-    client.post("/admin/data/airportdata/auto", data={})
-    assert settings_store.get(db, airportdata.SETTING_AUTO) == "0"
-
-    # whole collection as an import with review
-    ac.delivery_date = None
-    ac.msn = "1"
-    db.commit()
-    assert "/admin/data/airportdata/download" in client.get("/admin/data").text
-    client.post("/admin/data/airportdata/download")
-    jobs.wait_idle()
-    batch = db.query(models.ImportBatch).filter_by(source="airportdata").one()
-    assert batch.status == "ready" and batch.stats["changed"] == 1
-    row = db.query(models.ImportRow).filter_by(batch_id=batch.id).one()
-    assert {"msn", "delivery_date"} <= set(row.old)
-    importers.apply_batch(db, batch)
-    db.expire_all()
-    assert ac.msn == "9555" and ac.delivery_date == date(2020, 9, 24) and ac.source == "manual"
+    assert site == []  # not asked automatically
+    page = client.get("/admin/data").text
+    assert "/admin/data/airportdata/" not in page  # no lookup of the whole collection
+    assert client.post("/admin/data/airportdata/download").status_code == 404
 
 
 # ---- flightera ---------------------------------------------------------------------------
@@ -170,7 +157,9 @@ FLIGHTERA = {
 @pytest.fixture()
 def api(monkeypatch):
     monkeypatch.setenv("FLIGHTERA_URL", "https://example.invalid/dapi/v1")
+    monkeypatch.setenv("FLIGHTERA_DELAY", "0")
     seen = []
+    quota = []
 
     def get(url, headers=None, **kwargs):
         seen.append((url, headers.get("X-Api-Key")))
@@ -178,16 +167,18 @@ def api(monkeypatch):
             return httpx.Response(403, json={"error": "unknown key", "code": "invalid_key", "status": 403})
         if url.endswith("reg=D-ABYA"):
             return httpx.Response(200, json=FLIGHTERA, headers={"X-Credit-Cost": "1", "X-Credit-Balance": "999"})
-        if url.endswith("reg=D-AEMPTY"):
+        if url.endswith("reg=D-AEMPTY") or (quota and url.endswith("reg=D-AZZZ")):
             return httpx.Response(402, json={"error": "API quota exhausted", "code": "quota_exceeded",
                                              "status": 402}, headers={"X-Credit-Balance": "0"})
         return httpx.Response(404, json={"error": "not found", "code": "not_found", "status": 404})
 
     monkeypatch.setattr(httpx, "get", get)
-    return seen
+    get.quota = quota
+    return seen, quota
 
 
 def test_flightera_key_setting_and_button(client, db, api):
+    api, _ = api
     ac = models.Aircraft(registration="D-ABYA", source="opensky", model="747-830", manual_fields=[])
     db.add(ac)
     db.commit()
@@ -222,3 +213,39 @@ def test_flightera_key_setting_and_button(client, db, api):
     client.post("/admin/data/flightera/key", data={"remove": "1"})
     assert settings_store.get(db, flightera.SETTING_KEY) == ""
     assert "/lookup/flightera" not in client.get(f"/aircraft/{ac.id}").text
+
+
+def test_flightera_whole_collection(client, db, api):
+    seen, quota = api
+    page = client.get("/admin/data").text
+    assert "/admin/data/flightera/key" in page
+    # without a key: no lookup
+    client.post("/admin/data/flightera/download")
+    jobs.wait_idle()
+    assert seen == [] and not db.query(models.ImportBatch).filter_by(source="flightera").count()
+
+    settings_store.set(db, flightera.SETTING_KEY, "good")
+    for reg in ("D-ABYA", "D-AUNK", "D-AZZZ"):
+        ac = models.Aircraft(registration=reg, source="manual", manual_fields=[])
+        db.add(ac)
+    db.commit()
+    assert "data-confirm" in client.get("/admin/data").text
+    client.post("/admin/data/flightera/download")
+    jobs.wait_idle()
+    assert len(seen) == 3
+    batch = db.query(models.ImportBatch).filter_by(source="flightera").one()
+    assert batch.status == "ready" and batch.stats["changed"] == 1
+    row = db.query(models.ImportRow).filter_by(batch_id=batch.id).one()
+    assert row.key == "D-ABYA" and {"icao24", "first_flight", "operator_name"} <= set(row.old)
+    importers.apply_batch(db, batch)
+    ac = db.query(models.Aircraft).filter_by(registration="D-ABYA").one()
+    assert ac.first_flight == "2012-02-29" and ac.source == "manual"
+
+    # credits used up: stops at once and keeps what was found before
+    quota.append(True)
+    seen.clear()
+    client.post("/admin/data/flightera/download")
+    jobs.wait_idle()
+    assert [u for u, _ in seen][-1].endswith("D-AZZZ") and len(seen) == 3
+    batch = db.query(models.ImportBatch).filter_by(source="flightera").order_by(models.ImportBatch.id.desc()).first()
+    assert batch.status == "ready"

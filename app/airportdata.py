@@ -8,7 +8,8 @@ delivery date and owner.
 A registration can belong to several aircraft over the years. The page then lists all
 records; the newest one (highest year built) is used.
 
-Button, automatic lookup and lookup of the whole collection work as for adsbdb (lookups.py).
+Only the "Info airport-data" button on an aircraft uses it: the page is HTML meant for people,
+so it is never asked automatically or for the whole collection.
 Model, manufacturer and operator are only filled when empty, so adsbdb/OpenSky values stay.
 """
 import logging
@@ -23,14 +24,12 @@ from urllib.parse import quote, unquote, urljoin, urlsplit
 import httpx
 
 import lookups
-import settings_store
 
 logger = logging.getLogger("airportdata")
 
 KEY = "airportdata"
 LABEL = "airport-data.com"
 DEFAULT_URL = "https://airport-data.com"
-SETTING_AUTO = "airportdata_auto"
 FILL_ONLY = {"model", "manufacturer", "operator_name"}
 
 # label on the page -> our key (compared without case, spaces and a trailing colon)
@@ -69,7 +68,7 @@ def enabled(db=None) -> bool:
 
 
 def auto_enabled(db) -> bool:
-    return enabled() and settings_store.get(db, SETTING_AUTO) != "0"
+    return False  # only on a click
 
 
 def _delay() -> float:

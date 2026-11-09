@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+import adsbdb
 import backup
 import emailer
 import importers
@@ -49,11 +50,11 @@ def data_page(request: Request, user=Depends(get_admin), db: Session = Depends(g
         "last_job": db.query(models.Job).filter(models.Job.kind.in_(IMPORT_JOBS))
         .order_by(models.Job.id.desc()).first(),
         "lookups": {
-            key: {"enabled": lookups.provider(key).enabled(), "auto": lookups.provider(key).auto_enabled(db)}
-            for key in ("adsbdb", "airportdata")
+            "adsbdb": {"enabled": adsbdb.enabled(), "ready": True, "auto": adsbdb.auto_enabled(db)},
+            # shown to enter the key; the lookup needs the key; never automatic (credits)
+            "flightera": {"enabled": flightera.enabled(), "ready": flightera.enabled(db), "auto": None},
         },
         "lookup_count": lookups.collection_query(db).count(),
-        "flightera_enabled": flightera.enabled(),
         "flightera_key_set": bool(flightera.api_key(db)),
         "flightera_balance": flightera.balance(db),
     })
@@ -62,9 +63,9 @@ def data_page(request: Request, user=Depends(get_admin), db: Session = Depends(g
 @router.post("/data/{source}/auto")
 def data_lookup_auto(source: str, request: Request, auto: str = Form(""), user=Depends(get_admin),
                      db: Session = Depends(get_db)):
-    if source not in ("adsbdb", "airportdata"):
+    if source != "adsbdb":
         raise HTTPException(404)
-    settings_store.set(db, lookups.provider(source).SETTING_AUTO, "1" if auto == "on" else "0")
+    settings_store.set(db, adsbdb.SETTING_AUTO, "1" if auto == "on" else "0")
     flash(request, "saved")
     return _redirect("/admin/data")
 
@@ -87,7 +88,7 @@ def data_download(source: str, request: Request, user=Depends(get_admin), db: Se
     if source not in importers.SOURCES:
         raise HTTPException(404)
     lookup = importers.SOURCES[source].get("lookup")
-    if lookup and not lookups.provider(lookup).enabled():
+    if lookup and not lookups.provider(lookup).enabled(db):
         raise HTTPException(404)
     if jobs.running(db, IMPORT_JOBS):
         flash(request, "job_running")
