@@ -5,10 +5,12 @@ That is why flightera is never asked automatically: only on a click ("Info fligh
 aircraft) or for the whole collection in Admin -> Master data. Errors (HTTP 400 and higher)
 cost nothing. Without credits or with a wrong key the collection lookup stops at once.
 
-It returns the Mode-S code, manufacturer, model, the current airline and the first flight.
+It returns the Mode-S code, manufacturer, model, the current airline (usually as IATA code,
+resolved via the airline master data) and the first flight.
 The key is entered on the master data page and stored in the settings table.
 """
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -17,6 +19,7 @@ from urllib.parse import quote
 import httpx
 
 import lookups
+import models
 import settings_store
 
 KEY = "flightera"
@@ -138,8 +141,35 @@ def to_record(db, ac, info: dict) -> dict:
         "icao24": hex_code if len(hex_code) == 6 else None,
         "manufacturer": text(info.get("manufacturer"), 255),
         "model": text(info.get("model"), 255),
-        "operator_name": text(info.get("airline"), 255),
         "first_flight": first if first and first[:4].isdigit() else None,
+        **_operator(db, text(info.get("airline"), 255)),
+    }
+
+
+def _operator(db, value: str | None) -> dict:
+    """flightera's ``airline`` is usually the airline's IATA code (e.g. "OU"), sometimes a name.
+    A code is resolved via the airline master data to name, IATA and ICAO code; an unknown or
+    ambiguous code changes nothing."""
+    if not value:
+        return {}
+    code = value.strip().upper()
+    if re.fullmatch(r"[A-Z0-9]{2}", code):
+        column = models.Airline.iata
+    elif re.fullmatch(r"[A-Z]{3}", code):
+        column = models.Airline.icao
+    else:
+        return {"operator_name": value}
+    if db is None:
+        return {}
+    airlines = db.query(models.Airline).filter(column == code).all()
+    active = [a for a in airlines if a.active] or airlines
+    if len({(a.icao or a.name) for a in active}) != 1:
+        return {}  # unknown or several airlines with this code
+    airline = active[0]
+    return {
+        "operator_name": airline.name,
+        "operator_iata": airline.iata,
+        "operator_icao": airline.icao,
     }
 
 

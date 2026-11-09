@@ -3,6 +3,9 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.7.1 (2026-11-09)
+- flightera: the airline comes as IATA code (e.g. "OU"). It is now looked up in the airline master data and sets operator name, IATA and ICAO code, instead of writing the code into the operator name. Unknown or ambiguous codes leave the operator unchanged
+
 ## 0.7 (2026-11-09)
 - Aircraft data from airport-data.com (free, no key): "Info airport-data" on an aircraft page reads the aircraft's page there and fills in MSN, build year, delivery date, engines and Mode S code. If a registration was used by several aircraft, the newest one counts. Model, manufacturer and operator are only filled when empty. airport-data.com is only asked on this click, never automatically or for the whole collection
 - Aircraft data from flightera.net: enter your free API key in Admin → Master data. "Info flightera" on an aircraft page fills in Mode S code, current airline and first flight; "Look up all aircraft of the collection" asks for every aircraft and shows the result for review like an import. Each aircraft found costs 1 credit (1000 a month for free), so flightera is never asked automatically; the lookup stops when the credits are used up and the remaining credits are shown next to the key

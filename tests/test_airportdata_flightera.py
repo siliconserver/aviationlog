@@ -249,3 +249,24 @@ def test_flightera_whole_collection(client, db, api):
     assert [u for u, _ in seen][-1].endswith("D-AZZZ") and len(seen) == 3
     batch = db.query(models.ImportBatch).filter_by(source="flightera").order_by(models.ImportBatch.id.desc()).first()
     assert batch.status == "ready"
+
+
+def test_flightera_airline_code_resolved(db):
+    db.add_all([
+        models.Airline(source_key="of:1", name="Croatia Airlines", icao="CTN", iata="OU", active=True, manual_fields=[]),
+        models.Airline(source_key="of:2", name="Old OU Air", icao="OUX", iata="OU", active=False, manual_fields=[]),
+        models.Airline(source_key="of:3", name="Twin A", icao="TWA", iata="TW", active=True, manual_fields=[]),
+        models.Airline(source_key="of:4", name="Twin B", icao="TWB", iata="TW", active=True, manual_fields=[]),
+    ])
+    db.commit()
+    ac = models.Aircraft(registration="9A-CTN", source="opensky", operator_name="Croatia Airlines",
+                         operator_icao="CTN", manual_fields=[])
+    db.add(ac)
+    db.commit()
+    rec = lookups.record(db, flightera, ac, {"reg": "9A-CTN", "airline": "OU", "first_flight": "2012-03-13"})
+    assert rec["operator_name"] == "Croatia Airlines" and rec["operator_iata"] == "OU" and rec["operator_icao"] == "CTN"
+    assert lookups.changes(db, flightera, ac, {"airline": "OU"}) == {"operator_iata": "OU"}
+    # ICAO code works too; unknown or ambiguous codes change nothing
+    assert lookups.record(db, flightera, ac, {"airline": "CTN"})["operator_iata"] == "OU"
+    assert "operator_name" not in lookups.record(db, flightera, ac, {"airline": "XX"})
+    assert "operator_name" not in lookups.record(db, flightera, ac, {"airline": "TW"})
