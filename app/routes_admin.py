@@ -6,11 +6,12 @@ from fastapi.responses import FileResponse, RedirectResponse
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-import adsbdb
 import backup
 import emailer
 import importers
+import flightera
 import jobs
+import lookups
 import models
 import photos
 import scan
@@ -47,17 +48,37 @@ def data_page(request: Request, user=Depends(get_admin), db: Session = Depends(g
         "job": jobs.running(db, IMPORT_JOBS),
         "last_job": db.query(models.Job).filter(models.Job.kind.in_(IMPORT_JOBS))
         .order_by(models.Job.id.desc()).first(),
-        "adsbdb_enabled": adsbdb.enabled(),
-        "adsbdb_auto": adsbdb.auto_enabled(db),
-        "adsbdb_count": adsbdb.collection_query(db).count() if adsbdb.enabled() else 0,
+        "lookups": {
+            key: {"enabled": lookups.provider(key).enabled(), "auto": lookups.provider(key).auto_enabled(db)}
+            for key in ("adsbdb", "airportdata")
+        },
+        "lookup_count": lookups.collection_query(db).count(),
+        "flightera_enabled": flightera.enabled(),
+        "flightera_key_set": bool(flightera.api_key(db)),
+        "flightera_balance": flightera.balance(db),
     })
 
 
-@router.post("/data/adsbdb/auto")
-def data_adsbdb_auto(request: Request, auto: str = Form(""), user=Depends(get_admin),
+@router.post("/data/{source}/auto")
+def data_lookup_auto(source: str, request: Request, auto: str = Form(""), user=Depends(get_admin),
                      db: Session = Depends(get_db)):
-    settings_store.set(db, adsbdb.SETTING_AUTO, "1" if auto == "on" else "0")
+    if source not in ("adsbdb", "airportdata"):
+        raise HTTPException(404)
+    settings_store.set(db, lookups.provider(source).SETTING_AUTO, "1" if auto == "on" else "0")
     flash(request, "saved")
+    return _redirect("/admin/data")
+
+
+@router.post("/data/flightera/key")
+def data_flightera_key(request: Request, key: str = Form(""), remove: str = Form(""),
+                       user=Depends(get_admin), db: Session = Depends(get_db)):
+    key = "" if remove else key.strip()
+    if key or remove:
+        settings_store.set(db, flightera.SETTING_KEY, key)
+        if remove:
+            settings_store.set(db, flightera.SETTING_BALANCE, "")
+            settings_store.set(db, flightera.SETTING_BALANCE_AT, "")
+        flash(request, "saved")
     return _redirect("/admin/data")
 
 
@@ -65,7 +86,8 @@ def data_adsbdb_auto(request: Request, auto: str = Form(""), user=Depends(get_ad
 def data_download(source: str, request: Request, user=Depends(get_admin), db: Session = Depends(get_db)):
     if source not in importers.SOURCES:
         raise HTTPException(404)
-    if importers.SOURCES[source].get("lookup") and not adsbdb.enabled():
+    lookup = importers.SOURCES[source].get("lookup")
+    if lookup and not lookups.provider(lookup).enabled():
         raise HTTPException(404)
     if jobs.running(db, IMPORT_JOBS):
         flash(request, "job_running")

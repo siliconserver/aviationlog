@@ -8,7 +8,7 @@ You only enter **registration, date and airport**. Type, airline, MSN, build yea
 
 - **Aircraft and sightings**: one entry per registration with any number of sightings (date, airport, spotting location, livery, photos). "Seen" is the number of sightings. Re-registered airframes are linked through the MSN.
 - **Search** across all details (registration, MSN, type, airline, livery, christening name, airport, spotting location, camera, lens), optionally limited to one field.
-- **Master data import** from OpenSky (aircraft), OurAirports (airports) and OpenFlights (airlines, type codes), plus a lookup of single aircraft at adsbdb.com. Every import is shown for review first: new and changed records, with the option to correct or reject them. Values you edited by hand are never overwritten.
+- **Master data import** from OpenSky (aircraft), OurAirports (airports) and OpenFlights (airlines, type codes), plus lookups of single aircraft at adsbdb.com, airport-data.com and flightera.net. Every import is shown for review first: new and changed records, with the option to correct or reject them. Values you edited by hand are never overwritten.
 - **Fleet completion**: per airline, spotted active aircraft out of the whole active fleet ("X of Y"). Retired aircraft can be marked inactive so they no longer count. The overview lists airlines with at least one spotted aircraft; "Show all airlines" lists every airline in the database.
 - **Your own master data**: airlines and airports can be edited (e.g. to add a missing IATA or ICAO code) and added by hand, and aircraft not spotted yet can be added to a fleet. A later import merges a hand-made airline or airport with the entry of the same ICAO code and keeps your values. Airlines and airports without sightings can be deleted.
 - **Photos** in two modes (see below), previews for JPG, PNG, HEIF/HIF and Sony ARW, camera data (EXIF: camera, lens, focal length, aperture, exposure, ISO, GPS) per photo, a cover photo per aircraft.
@@ -142,15 +142,19 @@ With HTTPS set `SESSION_HTTPS_ONLY=true` and `BASE_URL=https://aviationlog.examp
 | [OpenFlights](https://openflights.org/data) | airlines and aircraft type codes (IATA/ICAO) | ODbL |
 | ICAO Doc 8643 via OpenSky | aircraft type designators, manufacturer, engines | unlicensed, provided "as is" (see below) |
 | [adsbdb.com](https://www.adsbdb.com/) (lookup by registration) | aircraft: type, manufacturer, Mode S, operator | free public API, aircraft data courtesy of PlaneBase |
+| [airport-data.com](https://airport-data.com/) (lookup by registration) | aircraft: MSN, build year, delivery date, engines, Mode S, owner | public aircraft pages, read one by one |
+| [flightera.net](https://www.flightera.net/en/data/docs) (lookup by registration, own API key) | aircraft: Mode S, current airline, first flight | free account: 1000 credits a month, 1 credit per lookup |
 
 Delivery date, production site and status (active/inactive) are not available from free sources in good quality. Enter them by hand once per aircraft; they are kept across imports. If the container has no internet access, download the files elsewhere and upload them on the same page. The download URLs can be changed with `OPENSKY_URL`, `OURAIRPORTS_URL`, `OPENFLIGHTS_AIRLINES_URL`, `OPENFLIGHTS_PLANES_URL` and `DOC8643_URL`.
 
-**adsbdb.com lookup.** adsbdb completes single aircraft, e.g. ones that are newer than the OpenSky snapshot. It has no MSN, build year or fleets. There are three ways to use it:
-- **Load data** on an aircraft page looks up that registration and applies the result.
-- New aircraft (sighting form, fleet page, photo scan) are looked up automatically in the background. This can be switched off in *Admin → Master data*.
-- *Admin → Master data → Look up all aircraft of the collection* asks for every spotted aircraft and every aircraft added by hand or by the scan, one request every 0.5 seconds. The result is shown for review like any import.
+**Lookups by registration.** adsbdb.com and airport-data.com complete single aircraft, e.g. ones that are newer than the OpenSky snapshot. adsbdb has type, manufacturer, Mode S and operator; airport-data.com adds MSN, build year, delivery date and engines (its aircraft page is read and parsed; if a registration was used by several aircraft, the newest one counts). There are three ways to use them:
+- **Info adsbdb** / **Info airport-data** on an aircraft page looks up that registration and applies the result.
+- New aircraft (sighting form, fleet page, photo scan) are looked up automatically in the background. This can be switched off per source in *Admin → Master data*.
+- *Admin → Master data → Look up all aircraft of the collection* asks for every spotted aircraft and every aircraft added by hand or by the scan, one request every 0.5 (adsbdb) or 1 second (airport-data). The result is shown for review like any import.
 
-Fields you edited by hand are never changed; model and manufacturer are only filled when empty. `ADSBDB_URL=off` switches all lookups off; `ADSBDB_DELAY` sets the pause between two requests in seconds.
+Fields you edited by hand are never changed; model and manufacturer (and for airport-data the operator) are only filled when empty. `ADSBDB_URL=off` / `AIRPORTDATA_URL=off` switch the lookups off; `ADSBDB_DELAY` / `AIRPORTDATA_DELAY` set the pause between two requests in seconds.
+
+**flightera.net.** Create a free account, copy the API key from [your account](https://www.flightera.net/en/account/api) and paste it in *Admin → Master data*. **Info flightera** on an aircraft page then fills in Mode S code, current airline and first flight. Every lookup costs 1 credit (1000 a month on the free plan), so flightera is never asked automatically; the remaining credits of the last lookup are shown next to the key. `FLIGHTERA_URL=off` switches it off.
 
 The OpenSky aircraft database is unlicensed and does not fall under OpenSky's terms of use; it comes without support or guarantees of any kind. If you use OpenSky Network data in a publication (including web pages, research papers or public presentations), OpenSky asks you to cite:
 

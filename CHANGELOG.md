@@ -3,6 +3,13 @@
 All notable changes to AviationLog. Newest version on top.
 This file is also shown on the "About" page; the top version is the app version.
 
+## 0.7 (2026-11-09)
+- Aircraft data from airport-data.com (free, no key): "Info airport-data" on an aircraft page reads the aircraft's page there and fills in MSN, build year, delivery date, engines and Mode S code. If a registration was used by several aircraft, the newest one counts. Model, manufacturer and operator are only filled when empty
+- airport-data.com also looks up new aircraft automatically and can look up the whole collection in Admin → Master data, like adsbdb (each can be switched off on its own)
+- Aircraft data from flightera.net: enter your free API key in Admin → Master data, then "Info flightera" on an aircraft page fills in Mode S code, current airline and first flight. Each lookup costs 1 credit (1000 a month for free), so flightera is only asked on a click; the remaining credits are shown next to the key
+- The adsbdb button is now called "Info adsbdb"
+- Import review: the delivery date is compared and applied as well
+
 ## 0.6.2 (2026-11-08)
 - Import review: after "Save" on a row the page stays at that row instead of jumping back to the top; the saved row is outlined
 

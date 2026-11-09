@@ -15,7 +15,7 @@
 {{ m.job_status(job or last_job) }}
 
 {% for key, src in sources.items() %}
-{% if not src.lookup or adsbdb_enabled %}
+{% if not src.lookup or lookups[src.lookup].enabled %}
 {% set b = batches.get(key) %}
 <section class="panel">
   <h2>{{ src.label }} <span class="count">{{ t("entity." ~ src.entity) }}</span></h2>
@@ -29,11 +29,12 @@
   {% if b.status == "ready" %}<p><a class="btn" href="/admin/data/batch/{{ b.id }}">{{ t("data.review") }} →</a></p>{% endif %}
   {% endif %}
   {% if src.lookup %}
-  <p class="muted">{{ t("adsbdb.intro") }}</p>
+  {% set lk = lookups[src.lookup] %}
+  <p class="muted">{{ t(key ~ ".intro") }}</p>
   <div class="actions">
-    <form method="post" action="/admin/data/{{ key }}/download" class="inline-form"><button class="btn-secondary" {{ "disabled" if job or not adsbdb_count }} title="{{ t('adsbdb.lookup_all_hint') }}">{{ t("adsbdb.lookup_all", count=adsbdb_count) }}</button></form>
-    <form method="post" action="/admin/data/adsbdb/auto" class="inline-form">
-      <label><input type="checkbox" name="auto" {{ "checked" if adsbdb_auto }} onchange="this.form.submit()"> {{ t("adsbdb.auto") }}</label>
+    <form method="post" action="/admin/data/{{ key }}/download" class="inline-form"><button class="btn-secondary" {{ "disabled" if job or not lookup_count }} title="{{ t('lookup.all_hint') }}">{{ t("lookup.all", count=lookup_count) }}</button></form>
+    <form method="post" action="/admin/data/{{ key }}/auto" class="inline-form">
+      <label><input type="checkbox" name="auto" {{ "checked" if lk.auto }} onchange="this.form.submit()"> {{ t("lookup.auto") }}</label>
       <noscript><button class="btn-secondary btn-sm">{{ t("common.save") }}</button></noscript>
     </form>
   </div>
@@ -49,4 +50,23 @@
 </section>
 {% endif %}
 {% endfor %}
+
+{% if flightera_enabled %}
+<section class="panel">
+  <h2>flightera.net <span class="count">{{ t("entity.aircraft") }}</span></h2>
+  <p class="muted">{{ t("flightera.intro") }} · <a href="https://www.flightera.net/en/account/api" target="_blank" rel="noopener">{{ t("flightera.get_key") }}</a></p>
+  {% if flightera_key_set %}
+  <p>{{ t("flightera.key_saved") }}{% if flightera_balance[0] %} · {{ t("flightera.balance", credits=flightera_balance[0]) }}{% if flightera_balance[1] %} <span class="muted">({{ flightera_balance[1][:10] }})</span>{% endif %}{% endif %}</p>
+  {% endif %}
+  <div class="actions">
+    <form method="post" action="/admin/data/flightera/key" class="inline-form">
+      <input type="password" name="key" autocomplete="off" placeholder="{{ t('flightera.key_placeholder') }}" aria-label="{{ t('flightera.key') }}">
+      <button class="btn-secondary">{{ t("common.save") }}</button>
+    </form>
+    {% if flightera_key_set %}
+    <form method="post" action="/admin/data/flightera/key" class="inline-form"><input type="hidden" name="remove" value="1"><button class="btn-secondary">{{ t("flightera.remove_key") }}</button></form>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
 {% endblock %}
